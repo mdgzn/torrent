@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WebRTC Manual Signaling</title>
+
+<style>
+body{
+font-family:monospace;
+background:#f4f7fb;
+padding:20px;
+max-width:800px;
+margin:auto;
+}
+
+textarea,input{
+width:100%;
+margin:5px 0;
+padding:8px;
+box-sizing:border-box;
+}
+
+button{
+width:100%;
+padding:10px;
+margin:5px 0;
+background:#2563eb;
+color:white;
+border:none;
+cursor:pointer;
+}
+
+pre{
+background:#111;
+color:#eee;
+padding:10px;
+height:200px;
+overflow:auto;
+}
+</style>
+</head>
+
+<body>
+
+<h2>🌐 WebRTC Manual Signaling (Tanpa Server)</h2>
+
+<button onclick="createOffer()">Buat Offer</button>
+
+<textarea id="signalInput" placeholder="Paste signaling JSON"></textarea>
+<button onclick="applySignal()">Apply Signaling</button>
+
+<textarea id="jsonOutput" readonly placeholder="Signaling JSON muncul di sini"></textarea>
+
+<input id="msg" placeholder="Ketik pesan">
+<button onclick="sendMessage()">Kirim Pesan</button>
+
+<pre id="log"></pre>
+
+<script src="https://cdn.jsdelivr.net/npm/simple-peer@9/simplepeer.min.js"></script>
+
+<script>
+
+const peers={}
+const logEl=document.getElementById("log")
+const jsonOutput=document.getElementById("jsonOutput")
+
+const myId="user"+Math.floor(Math.random()*9999)
+
+function log(t){
+logEl.textContent+=t+"\n"
+logEl.scrollTop=logEl.scrollHeight
+}
+
+function createPeer(initiator,connId){
+
+const peer=new SimplePeer({
+initiator,
+trickle:false,
+config:{
+iceServers:[
+{urls:"stun:stun.l.google.com:19302"},
+{urls:"stun:global.stun.twilio.com:3478"}
+]
+}
+})
+
+peer.on("signal",data=>{
+
+const payload={
+connId,
+type:data.type,
+signal:data
+}
+
+jsonOutput.value=JSON.stringify(payload,null,2)
+
+log("📡 Signal dibuat "+data.type)
+})
+
+peer.on("connect",()=>{
+log("✅ Connected "+connId)
+})
+
+peer.on("data",d=>{
+try{
+const m=JSON.parse(d)
+if(m.type==="ping") return
+
+log("💬 "+m.from+" : "+m.text)
+
+}catch{
+log("📦 "+d)
+}
+})
+
+peer.on("close",()=>{
+log("⚠️ Closed "+connId)
+delete peers[connId]
+})
+
+peer.on("error",e=>{
+log("❌ "+e.message)
+})
+
+return peer
+}
+
+function createOffer(){
+
+const connId="conn-"+crypto.randomUUID()
+
+const peer=createPeer(true,connId)
+
+peers[connId]=peer
+
+log("⏳ Offer dibuat "+connId)
+
+}
+
+function applySignal(){
+
+let obj
+
+try{
+obj=JSON.parse(document.getElementById("signalInput").value.trim())
+}catch{
+alert("JSON tidak valid")
+return
+}
+
+const {connId,type,signal}=obj
+
+if(!connId || !signal){
+alert("Format salah")
+return
+}
+
+if(!peers[connId]){
+
+if(type!=="offer"){
+alert("Receiver hanya menerima OFFER")
+return
+}
+
+const peer=createPeer(false,connId)
+
+peers[connId]=peer
+
+peer.signal(signal)
+
+log("📥 Offer diterima "+connId)
+
+}else{
+
+peers[connId].signal(signal)
+
+log("📥 Signal diterapkan "+type)
+
+}
+
+document.getElementById("signalInput").value=""
+
+}
+
+function sendMessage(){
+
+const text=document.getElementById("msg").value
+
+if(!text) return
+
+for(const id in peers){
+
+if(peers[id].connected){
+
+peers[id].send(JSON.stringify({
+from:myId,
+text:text
+}))
+
+}
+
+}
+
+log("🗨️ Kamu : "+text)
+
+document.getElementById("msg").value=""
+
+}
+
+setInterval(()=>{
+
+for(const id in peers){
+
+if(peers[id].connected){
+
+peers[id].send(JSON.stringify({
+type:"ping"
+}))
+
+}
+
+}
+
+},20000)
+
+</script>
+
+</body>
+</html>
