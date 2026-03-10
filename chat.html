@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>P2P WebRTC Manual Signaling</title>
+<title>P2P Chat Tanpa Server</title>
 
 <style>
 body{
@@ -16,7 +16,7 @@ margin:auto;
 
 textarea,input{
 width:100%;
-margin:5px 0;
+margin:6px 0;
 padding:8px;
 box-sizing:border-box;
 }
@@ -24,7 +24,7 @@ box-sizing:border-box;
 button{
 width:100%;
 padding:10px;
-margin:5px 0;
+margin:6px 0;
 background:#2563eb;
 color:white;
 border:none;
@@ -43,17 +43,17 @@ overflow:auto;
 
 <body>
 
-<h2>🔗 P2P WebRTC Manual Signaling (2 Orang)</h2>
+<h2>💬 P2P Chat Tanpa Server</h2>
 
-<button onclick="createOffer()">Buat Offer</button>
+<button onclick="buatOffer()">Buat Offer</button>
 
-<textarea id="signalInput" placeholder="Paste signaling dari teman"></textarea>
-<button onclick="applySignal()">Apply Signaling</button>
+<textarea id="inputSignal" placeholder="Paste signal dari teman"></textarea>
+<button onclick="applySignal()">Apply Signal</button>
 
-<textarea id="signalOutput" readonly placeholder="Signaling untuk dikirim"></textarea>
+<textarea id="outputSignal" readonly placeholder="Signal untuk dikirim"></textarea>
 
 <input id="msg" placeholder="Ketik pesan">
-<button onclick="sendMsg()">Kirim</button>
+<button onclick="kirim()">Kirim</button>
 
 <pre id="log"></pre>
 
@@ -64,7 +64,7 @@ overflow:auto;
 let peer=null
 
 const logEl=document.getElementById("log")
-const output=document.getElementById("signalOutput")
+const out=document.getElementById("outputSignal")
 
 const myId="user"+Math.floor(Math.random()*9999)
 
@@ -73,7 +73,7 @@ logEl.textContent+=t+"\n"
 logEl.scrollTop=logEl.scrollHeight
 }
 
-function createPeer(initiator){
+function buatPeer(initiator){
 
 peer=new SimplePeer({
 
@@ -82,10 +82,10 @@ trickle:false,
 
 config:{
 iceServers:[
-{urls:'stun:stun.l.google.com:19302'},
-{urls:'stun:stun1.l.google.com:19302'},
-{urls:'stun:stun2.l.google.com:19302'},
-{urls:'stun:global.stun.twilio.com:3478'}
+{urls:"stun:stun.l.google.com:19302"},
+{urls:"stun:stun1.l.google.com:19302"},
+{urls:"stun:stun2.l.google.com:19302"},
+{urls:"stun:stun3.l.google.com:19302"}
 ]
 }
 
@@ -94,19 +94,18 @@ iceServers:[
 peer.on("signal",data=>{
 
 const payload={
-type:data.type,
 signal:data
 }
 
-output.value=JSON.stringify(payload,null,2)
+out.value=JSON.stringify(payload,null,2)
 
-log("📡 Signal dibuat: "+data.type)
+log("📡 Signal dibuat")
 
 })
 
 peer.on("connect",()=>{
 
-log("✅ Connected!")
+log("✅ Connected")
 
 })
 
@@ -142,9 +141,9 @@ log("❌ "+e.message)
 
 }
 
-function createOffer(){
+function buatOffer(){
 
-createPeer(true)
+buatPeer(true)
 
 log("⏳ Offer dibuat")
 
@@ -155,20 +154,15 @@ function applySignal(){
 let obj
 
 try{
-
-obj=JSON.parse(document.getElementById("signalInput").value)
-
+obj=JSON.parse(document.getElementById("inputSignal").value)
 }catch{
-
 alert("JSON tidak valid")
-
 return
-
 }
 
 if(!peer){
 
-createPeer(false)
+buatPeer(false)
 
 log("📥 Offer diterima")
 
@@ -176,13 +170,13 @@ log("📥 Offer diterima")
 
 peer.signal(obj.signal)
 
-log("📡 Signal diterapkan: "+obj.type)
+log("📡 Signal diterapkan")
 
-document.getElementById("signalInput").value=""
+document.getElementById("inputSignal").value=""
 
 }
 
-function sendMsg(){
+function kirim(){
 
 const text=document.getElementById("msg").value
 
