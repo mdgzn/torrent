@@ -1,80 +1,78 @@
 <!DOCTYPE html>
-<html lang="id">
+<html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>P2P Hypercore Chat Demo</title>
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 
 <style>
 body{
-  font-family: system-ui, sans-serif;
-  background: #f4f6f9;
-  margin: 0;
+  font-family:system-ui;
+  background:#f4f6f9;
+  margin:0;
 }
 
 header{
-  background: #111827;
-  color: white;
-  padding: 20px;
-  text-align: center;
+  background:#111827;
+  color:white;
+  padding:20px;
+  text-align:center;
 }
 
 .container{
-  max-width: 900px;
-  margin: auto;
-  padding: 10px 15px;
+  max-width:900px;
+  margin:auto;
+  padding:20px;
 }
 
 .card{
-  background: white;
-  padding: 20px;
-  border-radius: 10px;
-  margin-bottom: 20px;
-  box-shadow: 0 4px 12px rgba(0,0,0,.06);
+  background:white;
+  padding:20px;
+  border-radius:10px;
+  margin-bottom:20px;
+  box-shadow:0 4px 12px rgba(0,0,0,.06);
 }
 
-input, button{
-  width: 100%;
-  padding: 12px;
-  margin-top: 8px;
-  border-radius: 6px;
-  border: 1px solid #ccc;
-  box-sizing: border-box;
-  font-size: 16px;
+input,button{
+  width:100%;
+  padding:12px;
+  margin-top:8px;
+  border-radius:6px;
+  border:1px solid #ccc;
+  box-sizing:border-box;
+  font-size:16px;
 }
 
 button{
-  background: #2563eb;
-  color: white;
-  border: none;
-  cursor: pointer;
+  background:#2563eb;
+  color:white;
+  border:none;
+  cursor:pointer;
+}
+
+button:active{
+  background:#1e4fd8;
 }
 
 #chat{
-  background: #0f172a;
-  color: white;
-  padding: 10px;
-  height: 300px;
-  overflow-y: auto;
-  font-family: monospace;
-  border-radius: 6px;
+  background:#0f172a;
+  color:white;
+  padding:10px;
+  height:300px;
+  overflow-y:auto;
+  font-family:monospace;
+  border-radius:6px;
 }
 
-/* Responsive untuk mobile */
-@media (max-width: 600px){
-  .card{
-    padding: 15px;
+/* Responsive mobile */
+@media (max-width:600px){
+  input,button{
+    font-size:14px;
+    padding:10px;
   }
-
-  input, button{
-    font-size: 14px;
-    padding: 10px;
-  }
-
   #chat{
-    height: 250px;
+    height:250px;
   }
 }
 </style>
@@ -83,62 +81,68 @@ button{
 <body>
 
 <header>
-  <h1>P2P Group Chat Demo</h1>
-  <p>Konsep Hypercore append-only chat log</p>
+<h1>P2P Group Chat Demo</h1>
+<p>Konsep Hypercore append-only chat log</p>
 </header>
 
 <div class="container">
 
-  <div class="card">
-    <h3>Identitas</h3>
-    <input id="username" placeholder="Nama kamu">
-    <p>Public Key:</p>
-    <input id="myId" readonly>
-    <p>Connect ke Peer:</p>
-    <input id="peerId" placeholder="Masukkan Peer ID">
-    <button id="connectBtn">Connect</button>
-  </div>
+<div class="card">
 
-  <div class="card">
-    <h3>Chat Group</h3>
-    <div id="chat"></div>
-    <input id="messageInput" placeholder="Tulis pesan...">
-    <button id="sendBtn">Kirim</button>
-  </div>
+<h3>Identitas</h3>
+
+<input id="username" placeholder="Nama kamu">
+
+<p>Public Key:</p>
+<input id="myId" readonly>
+
+<p>Connect ke Peer:</p>
+<input id="peerId" placeholder="Masukkan Peer ID">
+
+<button id="connectBtn">Connect</button>
+
+</div>
+
+<div class="card">
+
+<h3>Chat Group</h3>
+
+<div id="chat"></div>
+
+<input id="messageInput" placeholder="Tulis pesan...">
+
+<button id="sendBtn">Kirim</button>
+
+</div>
 
 </div>
 
 <script>
-let chatLog = []
-let connections = []
+let chatLog=[]
+let connections=[]
 
-let savedPeerId = localStorage.getItem("myPeerId")
-// gunakan Peer ID tersimpan kalau ada, kalau tidak generate otomatis
-const peer = savedPeerId ? new Peer(savedPeerId) : new Peer()
-peer.on("open", id => {
-  myId.value = id            
-  // tampilkan di field Public Key
-  localStorage.setItem("myPeerId", id) // simpan agar tetap sama saat refresh
-})
+const peer=new Peer()
 
-const chat = document.getElementById("chat")
-const username = document.getElementById("username")
-const myId = document.getElementById("myId")
-const peerId = document.getElementById("peerId")
-const connectBtn = document.getElementById("connectBtn")
-const sendBtn = document.getElementById("sendBtn")
-const messageInput = document.getElementById("messageInput")
+const chat=document.getElementById("chat")
+const username=document.getElementById("username")
+const myId=document.getElementById("myId")
+const peerId=document.getElementById("peerId")
+const connectBtn=document.getElementById("connectBtn")
+const sendBtn=document.getElementById("sendBtn")
+const messageInput=document.getElementById("messageInput")
 
 function render(){
-  chat.innerText = chatLog.map(m => `${m.user}: ${m.text}`).join("\n")
+  chat.innerText = chatLog.map(m=>`${m.user}: ${m.text}`).join("\n")
   chat.scrollTop = chat.scrollHeight
 }
 
 function broadcast(msg){
-  connections.forEach(c => c.send(msg))
+  connections.forEach(c=>{
+    if(c.open) c.send(msg)
+  })
 }
 
-sendBtn.onclick = () => {
+sendBtn.onclick = ()=>{
   const text = messageInput.value.trim()
   if(!text) return
 
@@ -150,65 +154,54 @@ sendBtn.onclick = () => {
 
   chatLog.push(msg)
   render()
-  broadcast({ type: "chat", msg })
+  broadcast({type:"chat", msg})
   messageInput.value = ""
 }
 
-peer.on("open", id => {
+// Tampilkan Peer ID di Public Key
+peer.on("open", id=>{
   myId.value = id
+  chatLog.push({user:"System", text:`Peer siap dengan ID: ${id}`})
+  render()
 })
 
-connectBtn.onclick = () => {
+connectBtn.onclick = ()=>{
   const conn = peer.connect(peerId.value)
   setup(conn)
 }
 
-peer.on("connection", conn => {
+// Event ketika menerima koneksi
+peer.on("connection", conn=>{
   setup(conn)
 })
 
 function setup(conn){
   connections.push(conn)
 
-  conn.on("open", () => {
-    // Kirim semua chat history ke peer baru
-    conn.send({ type: "sync", chatLog })
+  conn.on("open", ()=>{
+    chatLog.push({user:"System", text:`Terhubung dengan ${conn.peer}`})
+    render()
+
+    conn.send({type:"sync", chatLog})
   })
 
-  conn.on("data", data => {
-    // Pesan chat baru
+  conn.on("data", data=>{
     if(data.type === "chat"){
-      const exists = chatLog.some(m => m.time === data.msg.time && m.user === data.msg.user)
-      if(!exists){
-        chatLog.push(data.msg)
-        chatLog.sort((a,b) => a.time - b.time) // urutkan berdasarkan waktu
-        render()
-        // Broadcast ke peer lain kecuali pengirim
-        connections.forEach(c => {
-          if(c !== conn && c.open) c.send(data)
-        })
-      }
+      chatLog.push(data.msg)
+      render()
     }
-
-    // Sync history
     if(data.type === "sync"){
-      data.chatLog.forEach(msg => {
-        const exists = chatLog.some(m => m.time === msg.time && m.user === msg.user)
-        if(!exists){
-          chatLog.push(msg)
-        }
-      })
-      chatLog.sort((a,b) => a.time - b.time)
+      chatLog = data.chatLog
       render()
     }
   })
 
-  conn.on("close", () => {
-    // Hapus koneksi jika peer disconnect
+  conn.on("close", ()=>{
+    chatLog.push({user:"System", text:`Peer ${conn.peer} terputus`})
+    render()
     connections = connections.filter(c => c !== conn)
   })
 }
-
 </script>
 
 </body>
