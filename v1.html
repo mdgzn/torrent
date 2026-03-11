@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>P2P Multi Chat Broadcast + Telegram Signaling</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+<style>
+body{
+font-family:Arial;
+background:#e5ddd5;
+margin:0;
+display:flex;
+flex-direction:column;
+height:100vh;
+}
+
+header{
+background:#075E54;
+color:white;
+padding:12px;
+text-align:center;
+font-weight:bold;
+}
+
+.status{
+background:white;
+padding:8px;
+text-align:center;
+font-size:14px;
+border-bottom:1px solid #ddd;
+}
+
+.controls{
+background:white;
+padding:10px;
+border-bottom:1px solid #ddd;
+}
+
+textarea{
+width:100%;
+height:70px;
+border-radius:6px;
+border:1px solid #ccc;
+padding:6px;
+margin-top:5px;
+font-size:16px;
+}
+
+button{
+background:#128C7E;
+color:white;
+border:none;
+padding:8px 12px;
+border-radius:6px;
+margin-top:5px;
+}
+
+.row{
+display:flex;
+gap:5px;
+}
+
+.chat{
+height:35vh;
+overflow-y:auto;
+padding:10px;
+display:flex;
+flex-direction:column;
+gap:8px;
+border-top:1px solid #ddd;
+background:#f9f9f9;
+}
+
+.msg{
+max-width:70%;
+padding:8px 10px;
+border-radius:10px;
+font-size:14px;
+word-wrap:break-word;
+}
+
+.me{align-self:flex-end;background:#dcf8c6;}
+.peer{align-self:flex-start;background:white;}
+
+.inputBar{
+display:flex;
+background:white;
+padding:8px;
+gap:5px;
+border-top:1px solid #ddd;
+}
+
+.inputBar input{
+flex:1;
+padding:10px;
+border-radius:20px;
+border:1px solid #ccc;
+font-size:16px;
+}
+
+.send{
+background:#128C7E;
+border:none;
+color:white;
+padding:10px 16px;
+border-radius:20px;
+}
+</style>
+</head>
+
+<body>
+
+<header>P2P Multi Chat Broadcast (Telegram Signaling)</header>
+
+<div class="status">
+Peers connected: <b id="count">0</b>
+</div>
+
+<div class="controls">
+
+<button onclick="createOffer()">Generate Offer</button>
+
+<textarea id="connCode" placeholder="Connection code"></textarea>
+
+<div class="row">
+<button onclick="copyText('connCode')">Copy</button>
+</div>
+
+</div>
+
+<div id="chat" class="chat"></div>
+
+<div class="inputBar">
+<input id="msg" placeholder="Type message...">
+<button class="send" onclick="sendMsg()">Send</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/lz-string@1.4.4/libs/lz-string.min.js"></script>
+
+<script>
+
+/* =========================
+TELEGRAM CONFIG
+========================= */
+
+const TG_TOKEN="ISI_BOT_TOKEN";
+const TG_CHAT_ID=-1000000000000;
+
+let lastUpdate=0;
+
+/* =========================
+USER
+========================= */
+
+const myUser="User"+uid();
+
+function uid(){
+return "p"+Date.now()+Math.floor(Math.random()*10000);
+}
+
+/* =========================
+WEBRTC
+========================= */
+
+let peers={},channels={},seenMsgs=new Set();
+
+function newPeer(id){
+
+let pc=new RTCPeerConnection({
+iceServers:[{urls:"stun:stun.l.google.com:19302"}]
+});
+
+pc.ondatachannel=e=>{
+channels[id]=e.channel;
+setupChannel(id);
+};
+
+peers[id]=pc;
+
+return pc;
+}
+
+/* =========================
+CREATE OFFER
+========================= */
+
+function createOffer(){
+
+let id=uid();
+
+let pc=newPeer(id);
+
+let ch=pc.createDataChannel("chat");
+
+channels[id]=ch;
+
+setupChannel(id);
+
+pc.createOffer().then(o=>pc.setLocalDescription(o));
+
+pc.onicecandidate=e=>{
+
+if(!e.candidate){
+
+let s=LZString.compressToEncodedURIComponent(pc.localDescription.sdp);
+
+let code=id+"o"+s;
+
+connCode.value=code;
+
+sendToTelegram("OFFER:"+code);
+
+}
+
+};
+
+}
+
+/* =========================
+PROCESS OFFER / ANSWER
+========================= */
+
+function processCode(){
+
+let code=connCode.value.trim();
+
+if(!code)return;
+
+let id=code.match(/^p\d+/)[0];
+
+let type=code[id.length];
+
+let data=code.slice(id.length+1);
+
+let sdp=LZString.decompressFromEncodedURIComponent(data);
+
+let pc=peers[id]||newPeer(id);
+
+if(type==="o"){
+
+pc.setRemoteDescription({type:"offer",sdp:sdp});
+
+pc.createAnswer().then(a=>pc.setLocalDescription(a));
+
+pc.onicecandidate=e=>{
+
+if(!e.candidate){
+
+let s=LZString.compressToEncodedURIComponent(pc.localDescription.sdp);
+
+let code=id+"a"+s;
+
+connCode.value=code;
+
+sendToTelegram("ANSWER:"+code);
+
+}
+
+};
+
+}
+
+else if(type==="a"){
+
+pc.setRemoteDescription({type:"answer",sdp:sdp});
+
+}
+
+}
+
+/* =========================
+DATA CHANNEL
+========================= */
+
+function setupChannel(id){
+
+channels[id].onopen=()=>{
+
+updateCount();
+
+};
+
+channels[id].onmessage=e=>{
+
+let msgObj;
+
+try{
+
+msgObj=JSON.parse(e.data);
+
+}catch{
+
+msgObj={id:uid(),text:e.data,sender:id};
+
+}
+
+broadcastMessage(msgObj,id);
+
+};
+
+channels[id].onclose=()=>{
+
+updateCount();
+
+};
+
+}
+
+/* =========================
+CHAT
+========================= */
+
+function sendMsg(){
+
+let text=msg.value.trim();
+
+if(!text)return;
+
+let msgObj={
+
+id:uid(),
+
+text:text,
+
+sender:myUser
+
+};
+
+for(let id in channels){
+
+if(channels[id].readyState==="open"){
+
+channels[id].send(JSON.stringify(msgObj));
+
+}
+
+}
+
+addMessage(msgObj);
+
+seenMsgs.add(msgObj.id);
+
+msg.value="";
+
+}
+
+function broadcastMessage(msgObj,idFrom){
+
+if(seenMsgs.has(msgObj.id))return;
+
+seenMsgs.add(msgObj.id);
+
+for(let id in channels){
+
+if(id!==idFrom&&channels[id].readyState==="open"){
+
+channels[id].send(JSON.stringify(msgObj));
+
+}
+
+}
+
+addMessage(msgObj);
+
+}
+
+function addMessage(msgObj){
+
+let div=document.createElement("div");
+
+div.className=(msgObj.sender===myUser)?"msg me":"msg peer";
+
+div.innerText=msgObj.sender+" : "+msgObj.text;
+
+chat.appendChild(div);
+
+chat.scrollTop=chat.scrollHeight;
+
+}
+
+/* =========================
+PEER COUNT
+========================= */
+
+function updateCount(){
+
+let n=0;
+
+for(let id in channels){
+
+if(channels[id].readyState==="open")n++;
+
+}
+
+count.innerText=n;
+
+}
+
+/* =========================
+COPY
+========================= */
+
+function copyText(id){
+
+let t=document.getElementById(id);
+
+t.select();
+
+document.execCommand("copy");
+
+}
+
+/* =========================
+TELEGRAM SEND
+========================= */
+
+async function sendToTelegram(text){
+
+try{
+
+await fetch(
+
+`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`,
+
+{
+
+method:"POST",
+
+headers:{"Content-Type":"application/json"},
+
+body:JSON.stringify({
+
+chat_id:TG_CHAT_ID,
+
+text:text
+
+})
+
+}
+
+);
+
+}catch(e){
+
+console.log(e);
+
+}
+
+}
+
+/* =========================
+TELEGRAM CHECK
+========================= */
+
+async function checkTelegram(){
+
+try{
+
+let r=await fetch(
+
+`https://api.telegram.org/bot${TG_TOKEN}/getUpdates?offset=${lastUpdate+1}`
+
+);
+
+let d=await r.json();
+
+if(!d.result)return;
+
+d.result.forEach(u=>{
+
+lastUpdate=u.update_id;
+
+if(!u.message)return;
+
+let text=u.message.text||"";
+
+if(text.startsWith("OFFER:")||text.startsWith("ANSWER:")){
+
+let code=text.split(":")[1];
+
+connCode.value=code;
+
+processCode();
+
+}
+
+});
+
+}catch(e){}
+
+}
+
+/* =========================
+AUTO POLL
+========================= */
+
+setInterval(checkTelegram,3000);
+
+/* =========================
+ENTER SEND
+========================= */
+
+msg.addEventListener("keypress",e=>{
+
+if(e.key==="Enter"){
+
+e.preventDefault();
+
+sendMsg();
+
+}
+
+});
+
+</script>
+
+</body>
+</html>
