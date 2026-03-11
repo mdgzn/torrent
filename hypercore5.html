@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Obrolan Seo Mesh Full</title>
+<title>Obrolan Seo Mesh Resilient</title>
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -31,7 +31,6 @@ img.chatimg{max-width:200px;border-radius:6px;margin-top:4px;}
 </head>
 <body>
 <div class="app">
-
 <div class="header">
 <div class="avatar">O</div>
 <div>
@@ -55,17 +54,16 @@ img.chatimg{max-width:200px;border-radius:6px;margin-top:4px;}
 <input id="messageInput" placeholder="Ketik pesan">
 <button id="sendBtn">➤</button>
 </div>
-
 </div>
 
 <script>
-/* USERNAME AUTO */
+/* USERNAME */
 const names=["Anto","Budi","Sari","Rina","Dodi","Joko","Dina","Rudi","Sinta","Arif"];
 function randomUser(){return names[Math.floor(Math.random()*names.length)]+Math.floor(1000+Math.random()*9000);}
 if(!localStorage.username) localStorage.username=randomUser();
 const username=localStorage.username;
 
-/* VAR */
+/* VARIABLES */
 let connections=[], knownPeers=new Set(), chatLog=[], seenMessages=new Set();
 const peer=new Peer();
 const chat=document.getElementById("chat");
@@ -107,12 +105,10 @@ function connectPeer(pid){
   if(pid===peer.id) return;
   if(connections.find(c=>c.peer===pid)) return;
   const conn=peer.connect(pid,{reliable:true});
-  conn.on("open",()=>{setup(conn);conn.send({type:"sync",chatLog});conn.send({type:"peers",[...knownPeers]});});
-  conn.on("data",data=>handleData(data,conn));
-  conn.on("close",()=>{connections=connections.filter(c=>c!==conn);updatePeerCount();});
+  setup(conn);
 }
 
-/* HANDLE DATA */
+/* HANDLE INCOMING DATA */
 function handleData(data,conn){
   if(data.type==="chat"){
     const msg=data.msg;
@@ -127,7 +123,12 @@ function handleData(data,conn){
     render();
   }
   if(data.type==="peers"){
-    data.peers.forEach(pid=>{if(!knownPeers.has(pid)){knownPeers.add(pid);connectPeer(pid);}});
+    data.peers.forEach(pid=>{
+      if(!knownPeers.has(pid)){
+        knownPeers.add(pid);
+        connectPeer(pid);
+      }
+    });
   }
 }
 
@@ -142,7 +143,7 @@ function send(){
 sendBtn.onclick=send;
 messageInput.addEventListener("keypress",e=>{if(e.key==="Enter") send();});
 
-/* FILE */
+/* FILE / FOTO */
 fileBtn.onclick=()=>fileInput.click();
 fileInput.onchange=()=>{
   const file=fileInput.files[0];
@@ -156,12 +157,12 @@ fileInput.onchange=()=>{
   reader.readAsDataURL(file);
 }
 
-/* COPY/PASTE */
-copyBtn.onclick=()=>navigator.clipboard.writeText(peer.id).then(()=>alert("ID disalin!")).catch(e=>console.error(e));
+/* COPY / PASTE */
+copyBtn.onclick=()=>navigator.clipboard.writeText(peer.id).then(()=>alert("ID disalin!"));
 pasteBtn.onclick=async()=>{
   const text=await navigator.clipboard.readText();
   const pid=text.trim();
-  if(pid && pid!==peer.id){peerId.value=pid;connectPeer(pid);}
+  if(pid && pid!==peer.id){peerId.value=pid; connectPeer(pid);}
 }
 
 /* PEER OPEN */
@@ -173,24 +174,32 @@ peer.on("connection",conn=>{
   conn.on("data",data=>handleData(data,conn));
 });
 
-/* SETUP */
+/* SETUP CONNECTION */
 function setup(conn){
   if(connections.find(c=>c.peer===conn.peer)) return;
   connections.push(conn);
   knownPeers.add(conn.peer);
   updatePeerCount();
+
   conn.on("open",()=>{
     conn.send({type:"sync",chatLog});
     conn.send({type:"peers",peers:[...knownPeers]});
   });
-  conn.on("close",()=>{connections=connections.filter(c=>c!==conn);updatePeerCount();});
+
+  conn.on("data",data=>handleData(data,conn));
+
+  conn.on("close",()=>{
+    connections=connections.filter(c=>c!==conn);
+    updatePeerCount();
+  });
 }
 
 /* UPDATE PEER COUNT */
 function updatePeerCount(){peerCount.innerText=(connections.length+1)+" peserta";}
 
-/* PERIODIC PEER SHARE */
+/* PERIODIC BROADCAST PEERS */
 setInterval(()=>{broadcast({type:"peers",peers:[...knownPeers]});},4000);
+
 </script>
 </body>
 </html>
