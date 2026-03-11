@@ -16,8 +16,8 @@ button{background:#2563eb;color:white;border:none;cursor:pointer;}
 </head>
 <body>
 <header>
-<h1>P2P Group Chat Demo Full Mesh</h1>
-<p>Konsep Hypercore append-only chat log</p>
+<h1>P2P Chat Full Mesh</h1>
+<p>Semua peer saling broadcast</p>
 </header>
 
 <div class="container">
@@ -25,11 +25,12 @@ button{background:#2563eb;color:white;border:none;cursor:pointer;}
 <div class="card">
 <h3>Identitas</h3>
 <input id="username" placeholder="Nama kamu">
-<p>Public Key:</p>
+<p>Peer ID (Public Key):</p>
 <input id="myId" readonly>
 <p>Connect ke Peer:</p>
 <input id="peerId" placeholder="Masukkan Peer ID">
 <button id="connectBtn">Connect</button>
+<p id="peerCount">1 peserta</p>
 </div>
 
 <div class="card">
@@ -42,82 +43,109 @@ button{background:#2563eb;color:white;border:none;cursor:pointer;}
 </div>
 
 <script>
-let chatLog=[], connections=[], knownPeers=new Set();
+let chatLog=[], connections=[], knownPeers=new Set(), seenMessages=new Set();
 
-const peer=new Peer();
-const chat=document.getElementById("chat");
-const username=document.getElementById("username");
-const myId=document.getElementById("myId");
-const peerId=document.getElementById("peerId");
-const connectBtn=document.getElementById("connectBtn");
-const sendBtn=document.getElementById("sendBtn");
-const messageInput=document.getElementById("messageInput");
+const peer = new Peer();
+const chat = document.getElementById("chat");
+const username = document.getElementById("username");
+const myId = document.getElementById("myId");
+const peerId = document.getElementById("peerId");
+const connectBtn = document.getElementById("connectBtn");
+const sendBtn = document.getElementById("sendBtn");
+const messageInput = document.getElementById("messageInput");
+const peerCount = document.getElementById("peerCount");
 
+// RENDER CHAT
 function render(){
   chat.innerText = chatLog.map(m=>`${m.user}: ${m.text}`).join("\n");
   chat.scrollTop = chat.scrollHeight;
 }
 
-function broadcast(msg,sender=null){
-  connections.forEach(c=>{if(c!==sender)c.send(msg);});
+// BROADCAST ke semua peer
+function broadcast(data, sender=null){
+  connections.forEach(c=>{if(c!==sender) c.send(data);});
 }
 
-sendBtn.onclick=()=>{
-  const text=messageInput.value.trim();
+// UPDATE PEER COUNT
+function updatePeerCount(){
+  peerCount.innerText = (connections.length+1)+" peserta";
+}
+
+// SEND CHAT
+sendBtn.onclick = ()=>{
+  const text = messageInput.value.trim();
   if(!text) return;
-  const msg={id:crypto.randomUUID(),user:username.value||"anon",text,time:Date.now()};
+
+  const msg = { id:crypto.randomUUID(), user:username.value||"anon", text, time:Date.now() };
   chatLog.push(msg);
+  seenMessages.add(msg.id);
   render();
-  broadcast({type:"chat",msg});
+
+  broadcast({type:"chat", msg});
   messageInput.value="";
 };
 
-peer.on("open",id=>{myId.value=id; knownPeers.add(id);});
+// PEER OPEN
+peer.on("open", id=>{
+  myId.value = id;
+  knownPeers.add(id);
+});
 
-// Connect manual
-connectBtn.onclick=()=>{
-  const pid=peerId.value.trim();
+// MANUAL CONNECT
+connectBtn.onclick = ()=>{
+  const pid = peerId.value.trim();
   if(pid && pid!==peer.id) connectPeer(pid);
 };
 
-// Incoming connection
-peer.on("connection",conn=>{
+// SETUP INCOMING CONNECTION
+peer.on("connection", conn=>{
   setup(conn);
 });
 
-// Connect peer
+// CONNECT PEER DENGAN FULL MESH
 function connectPeer(pid){
   if(pid===peer.id) return;
   if(connections.find(c=>c.peer===pid)) return;
-  const conn = peer.connect(pid,{reliable:true});
+
+  const conn = peer.connect(pid, {reliable:true});
   setup(conn);
 }
 
-// Setup connection
+// SETUP KONEKSI
 function setup(conn){
   if(connections.find(c=>c.peer===conn.peer)) return;
+
   connections.push(conn);
   knownPeers.add(conn.peer);
   updatePeerCount();
 
-  conn.on("open",()=>{
-    // Sync chat log
-    conn.send({type:"sync",chatLog});
-    // Send known peers
-    conn.send({type:"peers",[...knownPeers]});
+  conn.on("open", ()=>{
+    // kirim chatLog ke peer baru
+    conn.send({type:"sync", chatLog});
+    // perkenalkan peer yang dikenal
+    conn.send({type:"peers", peers:[...knownPeers]});
   });
 
-  conn.on("data",data=>{
+  conn.on("data", data=>{
+    // CHAT BARU
     if(data.type==="chat"){
-      if(chatLog.find(m=>m.id===data.msg.id)) return;
+      if(seenMessages.has(data.msg.id)) return;
+      seenMessages.add(data.msg.id);
       chatLog.push(data.msg);
       render();
-      broadcast(data,conn);
+      broadcast(data, conn);
     }
+    // SYNC CHAT LOG
     if(data.type==="sync"){
-      data.chatLog.forEach(m=>{if(!chatLog.find(x=>x.id===m.id)) chatLog.push(m);});
+      data.chatLog.forEach(m=>{
+        if(!seenMessages.has(m.id)){
+          seenMessages.add(m.id);
+          chatLog.push(m);
+        }
+      });
       render();
     }
+    // FULL MESH PEERS
     if(data.type==="peers"){
       data.peers.forEach(pid=>{
         if(!knownPeers.has(pid)){
@@ -128,20 +156,17 @@ function setup(conn){
     }
   });
 
-  conn.on("close",()=>{
-    connections=connections.filter(c=>c!==conn);
+  conn.on("close", ()=>{
+    connections = connections.filter(c=>c!==conn);
     updatePeerCount();
   });
 }
 
-function updatePeerCount(){
-  document.getElementById("peerCount")?.innerText=(connections.length+1)+" peserta";
-}
-
-// Periodic broadcast known peers
+// PERIODIC BROADCAST KNOWN PEERS
 setInterval(()=>{
   broadcast({type:"peers",[...knownPeers]});
 },5000);
+
 </script>
 
 </body>
