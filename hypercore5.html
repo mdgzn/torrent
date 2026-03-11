@@ -1,172 +1,183 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>P2P Hypercore Chat Full Mesh</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>P2P Hypercore Chat Demo</title>
+
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+
 <style>
-body{font-family:system-ui;background:#f4f6f9;margin:0;}
-header{background:#111827;color:white;padding:20px;text-align:center;}
-.container{max-width:900px;margin:auto;padding:20px;}
-.card{background:white;padding:20px;border-radius:10px;margin-bottom:20px;box-shadow:0 4px 12px rgba(0,0,0,.06);}
-input,button{width:100%;padding:10px;margin-top:8px;border-radius:6px;border:1px solid #ccc;}
-button{background:#2563eb;color:white;border:none;cursor:pointer;}
-#chat{background:#0f172a;color:white;padding:10px;height:300px;overflow:auto;font-family:monospace;}
+body{
+  font-family: system-ui, sans-serif;
+  background: #f4f6f9;
+  margin: 0;
+}
+
+header{
+  background: #111827;
+  color: white;
+  padding: 20px;
+  text-align: center;
+}
+
+.container{
+  max-width: 900px;
+  margin: auto;
+  padding: 10px 15px;
+}
+
+.card{
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.06);
+}
+
+input, button{
+  width: 100%;
+  padding: 12px;
+  margin-top: 8px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  box-sizing: border-box;
+  font-size: 16px;
+}
+
+button{
+  background: #2563eb;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+#chat{
+  background: #0f172a;
+  color: white;
+  padding: 10px;
+  height: 300px;
+  overflow-y: auto;
+  font-family: monospace;
+  border-radius: 6px;
+}
+
+/* Responsive untuk mobile */
+@media (max-width: 600px){
+  .card{
+    padding: 15px;
+  }
+
+  input, button{
+    font-size: 14px;
+    padding: 10px;
+  }
+
+  #chat{
+    height: 250px;
+  }
+}
 </style>
 </head>
+
 <body>
+
 <header>
-<h1>P2P Chat Full Mesh</h1>
-<p>Semua peer saling broadcast</p>
+  <h1>P2P Group Chat Demo</h1>
+  <p>Konsep Hypercore append-only chat log</p>
 </header>
 
 <div class="container">
 
-<div class="card">
-<h3>Identitas</h3>
-<input id="username" placeholder="Nama kamu">
-<p>Peer ID (Public Key):</p>
-<input id="myId" readonly>
-<p>Connect ke Peer:</p>
-<input id="peerId" placeholder="Masukkan Peer ID">
-<button id="connectBtn">Connect</button>
-<p id="peerCount">1 peserta</p>
-</div>
+  <div class="card">
+    <h3>Identitas</h3>
+    <input id="username" placeholder="Nama kamu">
+    <p>Public Key:</p>
+    <input id="myId" readonly>
+    <p>Connect ke Peer:</p>
+    <input id="peerId" placeholder="Masukkan Peer ID">
+    <button id="connectBtn">Connect</button>
+  </div>
 
-<div class="card">
-<h3>Chat Group</h3>
-<div id="chat"></div>
-<input id="messageInput" placeholder="Tulis pesan...">
-<button id="sendBtn">Kirim</button>
-</div>
+  <div class="card">
+    <h3>Chat Group</h3>
+    <div id="chat"></div>
+    <input id="messageInput" placeholder="Tulis pesan...">
+    <button id="sendBtn">Kirim</button>
+  </div>
 
 </div>
 
 <script>
-let chatLog=[], connections=[], knownPeers=new Set(), seenMessages=new Set();
+let chatLog = []
+let connections = []
 
-const peer = new Peer();
-const chat = document.getElementById("chat");
-const username = document.getElementById("username");
-const myId = document.getElementById("myId");
-const peerId = document.getElementById("peerId");
-const connectBtn = document.getElementById("connectBtn");
-const sendBtn = document.getElementById("sendBtn");
-const messageInput = document.getElementById("messageInput");
-const peerCount = document.getElementById("peerCount");
+const peer = new Peer()
 
-// RENDER CHAT
+const chat = document.getElementById("chat")
+const username = document.getElementById("username")
+const myId = document.getElementById("myId")
+const peerId = document.getElementById("peerId")
+const connectBtn = document.getElementById("connectBtn")
+const sendBtn = document.getElementById("sendBtn")
+const messageInput = document.getElementById("messageInput")
+
 function render(){
-  chat.innerText = chatLog.map(m=>`${m.user}: ${m.text}`).join("\n");
-  chat.scrollTop = chat.scrollHeight;
+  chat.innerText = chatLog.map(m => `${m.user}: ${m.text}`).join("\n")
+  chat.scrollTop = chat.scrollHeight
 }
 
-// BROADCAST ke semua peer
-function broadcast(data, sender=null){
-  connections.forEach(c=>{if(c!==sender) c.send(data);});
+function broadcast(msg){
+  connections.forEach(c => c.send(msg))
 }
 
-// UPDATE PEER COUNT
-function updatePeerCount(){
-  peerCount.innerText = (connections.length+1)+" peserta";
+sendBtn.onclick = () => {
+  const text = messageInput.value.trim()
+  if(!text) return
+
+  const msg = {
+    user: username.value || "anon",
+    text,
+    time: Date.now()
+  }
+
+  chatLog.push(msg)
+  render()
+  broadcast({ type: "chat", msg })
+  messageInput.value = ""
 }
 
-// SEND CHAT
-sendBtn.onclick = ()=>{
-  const text = messageInput.value.trim();
-  if(!text) return;
+peer.on("open", id => {
+  myId.value = id
+})
 
-  const msg = { id:crypto.randomUUID(), user:username.value||"anon", text, time:Date.now() };
-  chatLog.push(msg);
-  seenMessages.add(msg.id);
-  render();
-
-  broadcast({type:"chat", msg});
-  messageInput.value="";
-};
-
-// PEER OPEN
-peer.on("open", id=>{
-  myId.value = id;
-  knownPeers.add(id);
-});
-
-// MANUAL CONNECT
-connectBtn.onclick = ()=>{
-  const pid = peerId.value.trim();
-  if(pid && pid!==peer.id) connectPeer(pid);
-};
-
-// SETUP INCOMING CONNECTION
-peer.on("connection", conn=>{
-  setup(conn);
-});
-
-// CONNECT PEER DENGAN FULL MESH
-function connectPeer(pid){
-  if(pid===peer.id) return;
-  if(connections.find(c=>c.peer===pid)) return;
-
-  const conn = peer.connect(pid, {reliable:true});
-  setup(conn);
+connectBtn.onclick = () => {
+  const conn = peer.connect(peerId.value)
+  setup(conn)
 }
 
-// SETUP KONEKSI
+peer.on("connection", conn => {
+  setup(conn)
+})
+
 function setup(conn){
-  if(connections.find(c=>c.peer===conn.peer)) return;
+  connections.push(conn)
 
-  connections.push(conn);
-  knownPeers.add(conn.peer);
-  updatePeerCount();
+  conn.on("open", () => {
+    conn.send({ type: "sync", chatLog })
+  })
 
-  conn.on("open", ()=>{
-    // kirim chatLog ke peer baru
-    conn.send({type:"sync", chatLog});
-    // perkenalkan peer yang dikenal
-    conn.send({type:"peers", peers:[...knownPeers]});
-  });
-
-  conn.on("data", data=>{
-    // CHAT BARU
-    if(data.type==="chat"){
-      if(seenMessages.has(data.msg.id)) return;
-      seenMessages.add(data.msg.id);
-      chatLog.push(data.msg);
-      render();
-      broadcast(data, conn);
+  conn.on("data", data => {
+    if(data.type === "chat"){
+      chatLog.push(data.msg)
+      render()
     }
-    // SYNC CHAT LOG
-    if(data.type==="sync"){
-      data.chatLog.forEach(m=>{
-        if(!seenMessages.has(m.id)){
-          seenMessages.add(m.id);
-          chatLog.push(m);
-        }
-      });
-      render();
+    if(data.type === "sync"){
+      chatLog = data.chatLog
+      render()
     }
-    // FULL MESH PEERS
-    if(data.type==="peers"){
-      data.peers.forEach(pid=>{
-        if(!knownPeers.has(pid)){
-          knownPeers.add(pid);
-          connectPeer(pid);
-        }
-      });
-    }
-  });
-
-  conn.on("close", ()=>{
-    connections = connections.filter(c=>c!==conn);
-    updatePeerCount();
-  });
+  })
 }
-
-// PERIODIC BROADCAST KNOWN PEERS
-setInterval(()=>{
-  broadcast({type:"peers",[...knownPeers]});
-},5000);
-
 </script>
 
 </body>
