@@ -1,71 +1,81 @@
-```html
 <!DOCTYPE html>
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Mini Hypercore P2P Learning Demo</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>P2P Hypercore Chat Demo</title>
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 
 <style>
 body{
-font-family:system-ui;
-background:#f4f6f9;
-margin:0;
+  font-family: system-ui, sans-serif;
+  background: #f4f6f9;
+  margin: 0;
 }
 
 header{
-background:#111827;
-color:white;
-padding:20px;
-text-align:center;
+  background: #111827;
+  color: white;
+  padding: 20px;
+  text-align: center;
 }
 
 .container{
-max-width:900px;
-margin:auto;
-padding:20px;
+  max-width: 900px;
+  margin: auto;
+  padding: 10px 15px;
 }
 
 .card{
-background:white;
-padding:20px;
-border-radius:10px;
-margin-bottom:20px;
-box-shadow:0 4px 12px rgba(0,0,0,.06);
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.06);
 }
 
-button,input{
-width:100%;
-padding:10px;
-margin-top:8px;
-border-radius:6px;
-border:1px solid #ccc;
+input, button{
+  width: 100%;
+  padding: 12px;
+  margin-top: 8px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  box-sizing: border-box;
+  font-size: 16px;
 }
 
 button{
-background:#2563eb;
-color:white;
-border:none;
-cursor:pointer;
+  background: #2563eb;
+  color: white;
+  border: none;
+  cursor: pointer;
 }
 
-button:hover{
-background:#1d4ed8;
+#chat{
+  background: #0f172a;
+  color: white;
+  padding: 10px;
+  height: 300px;
+  overflow-y: auto;
+  font-family: monospace;
+  border-radius: 6px;
 }
 
-#log{
-background:#0f172a;
-color:#22c55e;
-padding:12px;
-height:200px;
-overflow:auto;
-font-family:monospace;
-}
+/* Responsive untuk mobile */
+@media (max-width: 600px){
+  .card{
+    padding: 15px;
+  }
 
-.peer{
-font-size:14px;
-color:#666;
+  input, button{
+    font-size: 14px;
+    padding: 10px;
+  }
+
+  #chat{
+    height: 250px;
+  }
 }
 </style>
 </head>
@@ -73,163 +83,133 @@ color:#666;
 <body>
 
 <header>
-<h1>Mini Hypercore P2P Demo</h1>
-<p>Append-only log dengan replication antar peer</p>
+  <h1>P2P Group Chat Demo</h1>
+  <p>Konsep Hypercore append-only chat log</p>
 </header>
 
 <div class="container">
 
-<div class="card">
-<h2>🔑 Feed Identity</h2>
+  <div class="card">
+    <h3>Identitas</h3>
+    <input id="username" placeholder="Nama kamu">
+    <p>Public Key:</p>
+    <input id="myId" readonly>
+    <p>Connect ke Peer:</p>
+    <input id="peerId" placeholder="Masukkan Peer ID">
+    <button id="connectBtn">Connect</button>
+  </div>
 
-<p class="peer">Public Key (Feed ID):</p>
-<input id="myId" readonly>
-
-<p class="peer">Connect ke Peer:</p>
-<input id="peerId" placeholder="Masukkan public key peer">
-
-<button id="connectBtn">Connect Peer</button>
-
-</div>
-
-<div class="card">
-
-<h2>➕ Append Data</h2>
-
-<input id="dataInput" placeholder="Tulis data baru">
-
-<button id="appendBtn">Append ke Feed</button>
-
-</div>
-
-<div class="card">
-
-<h2>📜 Feed Log (Append Only)</h2>
-
-<div id="log"></div>
-
-</div>
+  <div class="card">
+    <h3>Chat Group</h3>
+    <div id="chat"></div>
+    <input id="messageInput" placeholder="Tulis pesan...">
+    <button id="sendBtn">Kirim</button>
+  </div>
 
 </div>
 
 <script>
-
-let feed = []
+let chatLog = []
 let connections = []
 
-const peer = new Peer()
+let savedPeerId = localStorage.getItem("myPeerId")
+// gunakan Peer ID tersimpan kalau ada, kalau tidak generate otomatis
+const peer = savedPeerId ? new Peer(savedPeerId) : new Peer()
+peer.on("open", id => {
+  myId.value = id            
+  // tampilkan di field Public Key
+  localStorage.setItem("myPeerId", id) // simpan agar tetap sama saat refresh
+})
 
+const chat = document.getElementById("chat")
+const username = document.getElementById("username")
 const myId = document.getElementById("myId")
 const peerId = document.getElementById("peerId")
 const connectBtn = document.getElementById("connectBtn")
-const appendBtn = document.getElementById("appendBtn")
-const dataInput = document.getElementById("dataInput")
-const logBox = document.getElementById("log")
-
-/* ===== Render Feed ===== */
+const sendBtn = document.getElementById("sendBtn")
+const messageInput = document.getElementById("messageInput")
 
 function render(){
-
-logBox.innerText = feed
-.map((v,i)=>`#${i}  ${v}`)
-.join("\n")
-
+  chat.innerText = chatLog.map(m => `${m.user}: ${m.text}`).join("\n")
+  chat.scrollTop = chat.scrollHeight
 }
-
-/* ===== Append Entry ===== */
-
-appendBtn.onclick = ()=>{
-
-const data = dataInput.value.trim()
-
-if(!data) return
-
-feed.push(data)
-
-render()
-
-broadcast({
-type:"append",
-data
-})
-
-dataInput.value=""
-
-}
-
-/* ===== Broadcast ===== */
 
 function broadcast(msg){
-
-connections.forEach(conn=>{
-conn.send(msg)
-})
-
+  connections.forEach(c => c.send(msg))
 }
 
-/* ===== Peer Ready ===== */
+sendBtn.onclick = () => {
+  const text = messageInput.value.trim()
+  if(!text) return
 
-peer.on("open", id=>{
-myId.value = id
-})
+  const msg = {
+    user: username.value || "anon",
+    text,
+    time: Date.now()
+  }
 
-/* ===== Connect Peer ===== */
-
-connectBtn.onclick = ()=>{
-
-const conn = peer.connect(peerId.value)
-
-setupConnection(conn)
-
+  chatLog.push(msg)
+  render()
+  broadcast({ type: "chat", msg })
+  messageInput.value = ""
 }
 
-/* ===== Incoming Peer ===== */
-
-peer.on("connection", conn=>{
-setupConnection(conn)
+peer.on("open", id => {
+  myId.value = id
 })
 
-/* ===== Setup Connection ===== */
-
-function setupConnection(conn){
-
-connections.push(conn)
-
-conn.on("open", ()=>{
-
-/* sync full feed */
-
-conn.send({
-type:"sync",
-feed
-})
-
-})
-
-conn.on("data", msg=>{
-
-if(msg.type==="append"){
-
-feed.push(msg.data)
-
-render()
-
+connectBtn.onclick = () => {
+  const conn = peer.connect(peerId.value)
+  setup(conn)
 }
 
-if(msg.type==="sync"){
-
-feed = msg.feed
-
-render()
-
-}
-
+peer.on("connection", conn => {
+  setup(conn)
 })
 
+function setup(conn){
+  connections.push(conn)
+
+  conn.on("open", () => {
+    // Kirim semua chat history ke peer baru
+    conn.send({ type: "sync", chatLog })
+  })
+
+  conn.on("data", data => {
+    // Pesan chat baru
+    if(data.type === "chat"){
+      const exists = chatLog.some(m => m.time === data.msg.time && m.user === data.msg.user)
+      if(!exists){
+        chatLog.push(data.msg)
+        chatLog.sort((a,b) => a.time - b.time) // urutkan berdasarkan waktu
+        render()
+        // Broadcast ke peer lain kecuali pengirim
+        connections.forEach(c => {
+          if(c !== conn && c.open) c.send(data)
+        })
+      }
+    }
+
+    // Sync history
+    if(data.type === "sync"){
+      data.chatLog.forEach(msg => {
+        const exists = chatLog.some(m => m.time === msg.time && m.user === msg.user)
+        if(!exists){
+          chatLog.push(msg)
+        }
+      })
+      chatLog.sort((a,b) => a.time - b.time)
+      render()
+    }
+  })
+
+  conn.on("close", () => {
+    // Hapus koneksi jika peer disconnect
+    connections = connections.filter(c => c !== conn)
+  })
 }
 
 </script>
 
 </body>
 </html>
-```
