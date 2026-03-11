@@ -1,0 +1,211 @@
+```html
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>P2P Hypercore Chat Demo</title>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+
+<style>
+body{
+font-family:system-ui;
+background:#f4f6f9;
+margin:0;
+}
+
+header{
+background:#111827;
+color:white;
+padding:20px;
+text-align:center;
+}
+
+.container{
+max-width:900px;
+margin:auto;
+padding:20px;
+}
+
+.card{
+background:white;
+padding:20px;
+border-radius:10px;
+margin-bottom:20px;
+box-shadow:0 4px 12px rgba(0,0,0,.06);
+}
+
+input,button{
+width:100%;
+padding:10px;
+margin-top:8px;
+border-radius:6px;
+border:1px solid #ccc;
+}
+
+button{
+background:#2563eb;
+color:white;
+border:none;
+cursor:pointer;
+}
+
+#chat{
+background:#0f172a;
+color:white;
+padding:10px;
+height:300px;
+overflow:auto;
+font-family:monospace;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+<h1>P2P Group Chat Demo</h1>
+<p>Konsep Hypercore append-only chat log</p>
+</header>
+
+<div class="container">
+
+<div class="card">
+
+<h3>Identitas</h3>
+
+<input id="username" placeholder="Nama kamu">
+
+<p>Public Key:</p>
+<input id="myId" readonly>
+
+<p>Connect ke Peer:</p>
+<input id="peerId" placeholder="Masukkan Peer ID">
+
+<button id="connectBtn">Connect</button>
+
+</div>
+
+<div class="card">
+
+<h3>Chat Group</h3>
+
+<div id="chat"></div>
+
+<input id="messageInput" placeholder="Tulis pesan...">
+
+<button id="sendBtn">Kirim</button>
+
+</div>
+
+</div>
+
+<script>
+
+let chatLog=[]
+let connections=[]
+
+const peer=new Peer()
+
+const chat=document.getElementById("chat")
+const username=document.getElementById("username")
+const myId=document.getElementById("myId")
+const peerId=document.getElementById("peerId")
+const connectBtn=document.getElementById("connectBtn")
+const sendBtn=document.getElementById("sendBtn")
+const messageInput=document.getElementById("messageInput")
+
+function render(){
+
+chat.innerText = chatLog
+.map(m=>`${m.user}: ${m.text}`)
+.join("\n")
+
+chat.scrollTop=chat.scrollHeight
+
+}
+
+function broadcast(msg){
+
+connections.forEach(c=>c.send(msg))
+
+}
+
+sendBtn.onclick=()=>{
+
+const text=messageInput.value.trim()
+if(!text) return
+
+const msg={
+user:username.value||"anon",
+text,
+time:Date.now()
+}
+
+chatLog.push(msg)
+
+render()
+
+broadcast({
+type:"chat",
+msg
+})
+
+messageInput.value=""
+
+}
+
+peer.on("open",id=>{
+myId.value=id
+})
+
+connectBtn.onclick=()=>{
+
+const conn=peer.connect(peerId.value)
+
+setup(conn)
+
+}
+
+peer.on("connection",conn=>{
+setup(conn)
+})
+
+function setup(conn){
+
+connections.push(conn)
+
+conn.on("open",()=>{
+
+conn.send({
+type:"sync",
+chatLog
+})
+
+})
+
+conn.on("data",data=>{
+
+if(data.type==="chat"){
+
+chatLog.push(data.msg)
+render()
+
+}
+
+if(data.type==="sync"){
+
+chatLog=data.chatLog
+render()
+
+}
+
+})
+
+}
+
+</script>
+
+</body>
+</html>
+```
