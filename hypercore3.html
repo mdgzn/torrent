@@ -2,88 +2,136 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Mini WhatsApp P2P</title>
+<title>P2P WhatsApp Style Chat</title>
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 
 <style>
 
 body{
-font-family:system-ui;
-background:#e5ddd5;
 margin:0;
-}
-
-header{
-background:#075e54;
+font-family:system-ui;
+background:#111b21;
 color:white;
-padding:15px;
-text-align:center;
+display:flex;
+justify-content:center;
+height:100vh;
 }
 
-.container{
-max-width:900px;
-margin:auto;
-padding:15px;
-}
-
-.card{
-background:white;
-padding:15px;
-border-radius:10px;
-margin-bottom:15px;
-box-shadow:0 4px 10px rgba(0,0,0,.08);
-}
-
-input,button{
+.app{
 width:100%;
-padding:10px;
-margin-top:6px;
-border-radius:6px;
-border:1px solid #ccc;
+max-width:420px;
+display:flex;
+flex-direction:column;
+background:#0b141a;
 }
 
-button{
+.header{
+background:#202c33;
+padding:12px;
+display:flex;
+align-items:center;
+gap:10px;
+}
+
+.avatar{
+width:40px;
+height:40px;
+border-radius:50%;
 background:#25d366;
-color:white;
-border:none;
-cursor:pointer;
+display:flex;
+align-items:center;
+justify-content:center;
+font-weight:bold;
 }
 
-#chat{
-background:#efeae2;
-height:320px;
+.name{
+font-size:15px;
+}
+
+.status{
+font-size:12px;
+opacity:.7;
+}
+
+.chat{
+flex:1;
 overflow:auto;
 padding:10px;
+background:#0b141a;
 display:flex;
 flex-direction:column;
 gap:6px;
 }
 
 .msg{
-max-width:70%;
-padding:8px 10px;
-border-radius:10px;
+max-width:75%;
+padding:7px 10px;
+border-radius:8px;
 font-size:14px;
+position:relative;
 }
 
 .me{
-background:#dcf8c6;
+background:#005c4b;
 align-self:flex-end;
 }
 
 .other{
-background:white;
+background:#202c33;
 align-self:flex-start;
 }
 
-.name{
-font-size:11px;
+.time{
+font-size:10px;
 opacity:.6;
+margin-top:2px;
+text-align:right;
 }
 
-#peers{
-font-size:13px;
+.footer{
+background:#202c33;
+padding:8px;
+display:flex;
+gap:6px;
+}
+
+.footer input{
+flex:1;
+border:none;
+padding:10px;
+border-radius:20px;
+outline:none;
+}
+
+.footer button{
+background:#25d366;
+border:none;
+padding:10px 16px;
+border-radius:20px;
+cursor:pointer;
+}
+
+.setup{
+padding:10px;
+background:#111b21;
+}
+
+.setup input{
+width:100%;
+margin-top:5px;
+padding:8px;
+border-radius:6px;
+border:none;
+}
+
+.setup button{
+margin-top:6px;
+padding:8px;
+border:none;
+border-radius:6px;
+background:#25d366;
+cursor:pointer;
 }
 
 </style>
@@ -91,81 +139,61 @@ font-size:13px;
 
 <body>
 
-<header>
-<h2>Mini WhatsApp P2P</h2>
-<p>Chat langsung antar browser</p>
-</header>
+<div class="app">
 
-<div class="container">
+<div class="header">
+<div class="avatar" id="avatar">U</div>
+<div>
+<div class="name" id="usernameLabel"></div>
+<div class="status" id="status">offline</div>
+</div>
+</div>
 
-<div class="card">
+<div class="setup">
 
-<b>Identitas</b>
-
-<input id="username">
-
-<p>ID kamu:</p>
+Peer ID kamu:
 <input id="myId" readonly>
 
-<p>Connect ke Peer:</p>
+Connect ke Peer:
 <input id="peerId" placeholder="Masukkan Peer ID">
 
 <button id="connectBtn">Connect</button>
 
-<p>Peer Online:</p>
-<div id="peers">0</div>
-
 </div>
 
+<div class="chat" id="chat"></div>
 
-<div class="card">
-
-<div id="chat"></div>
-
-<input id="messageInput" placeholder="Ketik pesan...">
-
-<button id="sendBtn">Kirim</button>
-
+<div class="footer">
+<input id="messageInput" placeholder="Ketik pesan">
+<button id="sendBtn">➤</button>
 </div>
 
 </div>
-
 
 <script>
 
-/* ========= USERNAME OTOMATIS ========= */
+/* ===== USERNAME OTOMATIS ===== */
 
-const names=[
-"Anto","Budi","Sari","Rina","Dodi",
-"Joko","Dina","Rudi","Sinta","Arif",
-"Putri","Agus","Fajar","Tono","Lina"
-]
+const names=["Anto","Budi","Sari","Rina","Dodi","Joko","Dina","Rudi","Sinta","Arif"]
 
-function randomUsername(){
-
-const name = names[Math.floor(Math.random()*names.length)]
-const number = Math.floor(1000 + Math.random()*9000)
-
-return name + number
-
+function randomUser(){
+return names[Math.floor(Math.random()*names.length)]
++Math.floor(1000+Math.random()*9000)
 }
 
 if(!localStorage.username){
-localStorage.username=randomUsername()
+localStorage.username=randomUser()
 }
 
-const usernameInput=document.getElementById("username")
-usernameInput.value=localStorage.username
+const username=localStorage.username
 
-usernameInput.onchange=()=>{
-localStorage.username=usernameInput.value
-}
+document.getElementById("usernameLabel").innerText=username
+document.getElementById("avatar").innerText=username[0]
 
+/* ===== VAR ===== */
 
-/* ========= VARIABEL ========= */
-
-let chatLog=[]
 let connections=[]
+let chatLog=[]
 
 const peer=new Peer()
 
@@ -175,10 +203,9 @@ const peerId=document.getElementById("peerId")
 const connectBtn=document.getElementById("connectBtn")
 const sendBtn=document.getElementById("sendBtn")
 const messageInput=document.getElementById("messageInput")
-const peers=document.getElementById("peers")
+const status=document.getElementById("status")
 
-
-/* ========= RENDER CHAT ========= */
+/* ===== RENDER ===== */
 
 function render(){
 
@@ -186,13 +213,17 @@ chat.innerHTML=""
 
 chatLog.forEach(m=>{
 
-const div=document.createElement("div")
+const box=document.createElement("div")
+box.className="msg "+(m.user===username?"me":"other")
 
-div.className="msg "+(m.user===usernameInput.value?"me":"other")
+const time=new Date(m.time).toLocaleTimeString()
 
-div.innerHTML=`<div class="name">${m.user}</div>${m.text}`
+box.innerHTML=`
+${m.text}
+<div class="time">${time}</div>
+`
 
-chat.appendChild(div)
+chat.appendChild(box)
 
 })
 
@@ -200,23 +231,21 @@ chat.scrollTop=chat.scrollHeight
 
 }
 
-
-/* ========= BROADCAST ========= */
+/* ===== BROADCAST ===== */
 
 function broadcast(data){
 connections.forEach(c=>c.send(data))
 }
 
+/* ===== SEND ===== */
 
-/* ========= SEND MESSAGE ========= */
-
-function sendMessage(){
+function send(){
 
 const text=messageInput.value.trim()
 if(!text) return
 
 const msg={
-user:usernameInput.value,
+user:username,
 text,
 time:Date.now()
 }
@@ -225,30 +254,24 @@ chatLog.push(msg)
 
 render()
 
-broadcast({
-type:"chat",
-msg
-})
+broadcast({type:"chat",msg})
 
 messageInput.value=""
 
 }
 
-sendBtn.onclick=sendMessage
+sendBtn.onclick=send
 
 messageInput.addEventListener("keypress",e=>{
-if(e.key==="Enter") sendMessage()
+if(e.key==="Enter") send()
 })
 
-
-/* ========= PEER OPEN ========= */
+/* ===== PEER ===== */
 
 peer.on("open",id=>{
 myId.value=id
+status.innerText="online"
 })
-
-
-/* ========= CONNECT ========= */
 
 connectBtn.onclick=()=>{
 
@@ -258,21 +281,13 @@ setup(conn)
 
 }
 
-
-/* ========= INCOMING ========= */
-
 peer.on("connection",conn=>{
 setup(conn)
 })
 
-
-/* ========= SETUP CONNECTION ========= */
-
 function setup(conn){
 
 connections.push(conn)
-
-peers.innerText=connections.length
 
 conn.on("open",()=>{
 
@@ -286,24 +301,15 @@ chatLog
 conn.on("data",data=>{
 
 if(data.type==="chat"){
-
 chatLog.push(data.msg)
 render()
-
 }
 
 if(data.type==="sync"){
-
 chatLog=data.chatLog
 render()
-
 }
 
-})
-
-conn.on("close",()=>{
-connections=connections.filter(c=>c!==conn)
-peers.innerText=connections.length
 })
 
 }
