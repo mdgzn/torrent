@@ -164,20 +164,44 @@ function setup(conn){
   connections.push(conn)
 
   conn.on("open", () => {
+    // Kirim semua chat history ke peer baru
     conn.send({ type: "sync", chatLog })
   })
 
   conn.on("data", data => {
+    // Pesan chat baru
     if(data.type === "chat"){
-      chatLog.push(data.msg)
-      render()
+      const exists = chatLog.some(m => m.time === data.msg.time && m.user === data.msg.user)
+      if(!exists){
+        chatLog.push(data.msg)
+        chatLog.sort((a,b) => a.time - b.time) // urutkan berdasarkan waktu
+        render()
+        // Broadcast ke peer lain kecuali pengirim
+        connections.forEach(c => {
+          if(c !== conn && c.open) c.send(data)
+        })
+      }
     }
+
+    // Sync history
     if(data.type === "sync"){
-      chatLog = data.chatLog
+      data.chatLog.forEach(msg => {
+        const exists = chatLog.some(m => m.time === msg.time && m.user === msg.user)
+        if(!exists){
+          chatLog.push(msg)
+        }
+      })
+      chatLog.sort((a,b) => a.time - b.time)
       render()
     }
   })
+
+  conn.on("close", () => {
+    // Hapus koneksi jika peer disconnect
+    connections = connections.filter(c => c !== conn)
+  })
 }
+
 </script>
 
 </body>
