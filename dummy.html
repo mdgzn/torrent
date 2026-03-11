@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>WebTorrent Hybrid Peer</title>
+
+<script src="https://cdn.jsdelivr.net/npm/webtorrent@0.115.0/webtorrent.min.js"></script>
+
+<style>
+body{
+font-family:Arial;
+text-align:center;
+padding:20px;
+}
+button,input{
+padding:8px;
+margin:5px;
+width:90%;
+max-width:400px;
+}
+</style>
+</head>
+<body>
+
+<h3>WebTorrent Seeder</h3>
+
+<button id="uploadBtn">Upload File Asli</button>
+<input type="file" id="fileInput" multiple style="display:none">
+
+<button id="dummyBtn">Gunakan Dummy File</button>
+
+<p id="info"></p>
+
+<hr>
+
+<input id="magnetInput" placeholder="Magnet Link">
+<button id="joinBtn">Join</button>
+
+<div id="viewer"></div>
+
+<script>
+
+const client = new WebTorrent()
+const $ = id => document.getElementById(id)
+
+/* =======================
+UPLOAD FILE ASLI
+======================= */
+
+$('uploadBtn').onclick = ()=>{
+$('fileInput').click()
+}
+
+$('fileInput').onchange = e => {
+
+const files = [...e.target.files]
+
+client.seed(files, torrent=>{
+
+$('info').textContent = "Seeding file asli"
+$('magnetInput').value = torrent.magnetURI
+
+})
+
+}
+
+
+/* =======================
+DUMMY FILE JSON
+======================= */
+
+$('dummyBtn').onclick = async ()=>{
+
+const res = await fetch("dummy.json")
+const data = await res.json()
+
+const files = data.files.map(f => {
+
+return new File(
+[f.content],
+f.name,
+{type:f.type}
+)
+
+})
+
+client.seed(files, torrent=>{
+
+$('info').textContent = "Seeding dummy file"
+$('magnetInput').value = torrent.magnetURI
+
+})
+
+}
+
+
+/* =======================
+JOIN TORRENT
+======================= */
+
+$('joinBtn').onclick = ()=>{
+
+const magnet = $('magnetInput').value.trim()
+
+client.add(magnet, torrent=>{
+
+torrent.files.forEach(file=>{
+
+const btn = document.createElement("button")
+
+btn.textContent = "Download "+file.name
+
+btn.onclick = ()=>{
+
+file.getBlob((err,blob)=>{
+
+const a=document.createElement("a")
+a.href=URL.createObjectURL(blob)
+a.download=file.name
+a.click()
+
+})
+
+}
+
+viewer.appendChild(btn)
+
+})
+
+})
+
+}
+
+</script>
+
+</body>
+</html>
