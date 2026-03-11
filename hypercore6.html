@@ -62,24 +62,27 @@ opacity:.7;
 padding:8px;
 background:#111b21;
 font-size:12px;
+display:flex;
+flex-direction:column;
+gap:4px;
 }
 
 .setup input{
 width:calc(100% - 50px);
 padding:8px;
-margin-top:5px;
 border:none;
 border-radius:6px;
 }
 
 .setup button{
-margin-top:5px;
 padding:8px;
 border:none;
 border-radius:6px;
 background:#25d366;
 color:white;
 cursor:pointer;
+width:50px;
+margin-top:4px;
 }
 
 .chat{
@@ -170,9 +173,19 @@ cursor:pointer;
 
 <div class="setup">
 
+<!-- ID sendiri -->
 ID kamu
-<input id="myId" readonly>
-<button id="copyBtn">Copy</button>
+<div style="display:flex; gap:4px;">
+  <input id="myId" readonly>
+  <button id="copyBtn">Copy</button>
+</div>
+
+<!-- Connect ke peer lain -->
+Connect ke Peer
+<div style="display:flex; gap:4px;">
+  <input id="peerId" placeholder="Masukkan ID peer lain">
+  <button id="connectBtn">Connect</button>
+</div>
 
 </div>
 
@@ -190,191 +203,127 @@ ID kamu
 <script>
 
 /* USERNAME AUTO */
-
 const names=["Anto","Budi","Sari","Rina","Dodi","Joko","Dina","Rudi","Sinta","Arif"]
 
 function randomUser(){
-  return names[Math.floor(Math.random()*names.length)]
-  +Math.floor(1000+Math.random()*9000)
+  return names[Math.floor(Math.random()*names.length)] + Math.floor(1000+Math.random()*9000)
 }
 
 if(!localStorage.username){
   localStorage.username=randomUser()
 }
 
-const username=localStorage.username
+const username = localStorage.username
 
 /* VARIABLES */
-
 let connections=[]
 let knownPeers=new Set()
 let chatLog=[]
 let seenMessages=new Set()
 
-const peer=new Peer()
+const peer = new Peer()
 
-const chat=document.getElementById("chat")
-const myId=document.getElementById("myId")
-const sendBtn=document.getElementById("sendBtn")
-const messageInput=document.getElementById("messageInput")
-const peerCount=document.getElementById("peerCount")
-const copyBtn=document.getElementById("copyBtn")
+const chat = document.getElementById("chat")
+const myId = document.getElementById("myId")
+const sendBtn = document.getElementById("sendBtn")
+const messageInput = document.getElementById("messageInput")
+const peerCount = document.getElementById("peerCount")
+const copyBtn = document.getElementById("copyBtn")
+const peerId = document.getElementById("peerId")
+const connectBtn = document.getElementById("connectBtn")
 
 /* RENDER CHAT */
-
 function render(){
-
   chat.innerHTML=""
-
   chatLog.forEach(m=>{
-
     const box=document.createElement("div")
-
     box.className="msg "+(m.user===username?"me":"other")
-
     let html=""
-
     if(m.user!==username){
       html+=`<div class="sender">${m.user}</div>`
     }
-
     html+=m.text
-
     const time=new Date(m.time).toLocaleTimeString()
-
     box.innerHTML=html+`<div class="time">${time}</div>`
-
     chat.appendChild(box)
-
   })
-
   chat.scrollTop=chat.scrollHeight
-
 }
 
 /* BROADCAST */
-
 function broadcast(data, sender=null){
   connections.forEach(conn=>{
-    if(conn!==sender){
-      conn.send(data)
-    }
+    if(conn!==sender) conn.send(data)
   })
 }
 
 /* CONNECT PEER */
-
 function connectPeer(pid){
   if(pid===peer.id) return
   if(connections.find(c=>c.peer===pid)) return
-  const conn=peer.connect(pid)
+  const conn = peer.connect(pid)
   setup(conn)
 }
 
 /* SEND MESSAGE */
-
 function send(){
-
-  const text=messageInput.value.trim()
+  const text = messageInput.value.trim()
   if(!text) return
-
-  const msg={
-    id:crypto.randomUUID(),
-    user:username,
-    text,
-    time:Date.now()
-  }
-
+  const msg = { id:crypto.randomUUID(), user:username, text, time:Date.now() }
   seenMessages.add(msg.id)
-
   chatLog.push(msg)
-
   render()
-
-  broadcast({
-    type:"chat",
-    msg
-  })
-
+  broadcast({type:"chat", msg})
   messageInput.value=""
-
 }
 
-sendBtn.onclick=send
-
-messageInput.addEventListener("keypress",e=>{
-  if(e.key==="Enter") send()
-})
+sendBtn.onclick = send
+messageInput.addEventListener("keypress", e=>{ if(e.key==="Enter") send() })
 
 /* COPY ID */
-
 copyBtn.onclick = () => {
   navigator.clipboard.writeText(peer.id)
     .then(()=>alert("ID disalin!"))
     .catch(err=>console.error("Gagal menyalin ID", err))
 }
 
+/* CONNECT BUTTON */
+connectBtn.onclick = () => {
+  const pid = peerId.value.trim()
+  if(pid) connectPeer(pid)
+}
+
 /* PEER OPEN */
-
-peer.on("open",id=>{
-
-  myId.value=id
+peer.on("open", id=>{
+  myId.value = id
   knownPeers.add(id)
-
-  // AUTO CONNECT via URL ?peer=PEERID
-  const urlParams = new URLSearchParams(window.location.search)
-  const autoPeer = urlParams.get("peer")
-  if(autoPeer && autoPeer !== id){
-    connectPeer(autoPeer)
-  }
-
 })
 
 /* INCOMING CONNECTION */
-
-peer.on("connection",conn=>{
-  setup(conn)
-})
+peer.on("connection", conn => setup(conn))
 
 /* SETUP CONNECTION */
-
 function setup(conn){
-
   connections.push(conn)
-
   knownPeers.add(conn.peer)
+  peerCount.innerText = (connections.length+1)+" peserta"
 
-  peerCount.innerText=(connections.length+1)+" peserta"
-
-  conn.on("open",()=>{
-
-    /* sync chat */
-    conn.send({
-      type:"sync",
-      chatLog
-    })
-
-    /* intro peers */
-    conn.send({
-      type:"peers",
-      peers:[...knownPeers]
-    })
-
+  conn.on("open", ()=>{
+    // sync chat
+    conn.send({ type:"sync", chatLog })
+    // intro peers
+    conn.send({ type:"peers", peers:[...knownPeers] })
   })
 
-  conn.on("data",data=>{
-
-    /* CHAT */
+  conn.on("data", data=>{
     if(data.type==="chat"){
-      const msg=data.msg
+      const msg = data.msg
       if(seenMessages.has(msg.id)) return
       seenMessages.add(msg.id)
       chatLog.push(msg)
       render()
-      broadcast(data,conn)
+      broadcast(data, conn)
     }
-
-    /* SYNC */
     if(data.type==="sync"){
       data.chatLog.forEach(msg=>{
         if(!seenMessages.has(msg.id)){
@@ -384,8 +333,6 @@ function setup(conn){
       })
       render()
     }
-
-    /* PEER INTRODUCTION */
     if(data.type==="peers"){
       data.peers.forEach(pid=>{
         if(!knownPeers.has(pid)){
@@ -394,23 +341,17 @@ function setup(conn){
         }
       })
     }
-
   })
 
-  conn.on("close",()=>{
-    connections=connections.filter(c=>c!==conn)
-    peerCount.innerText=(connections.length+1)+" peserta"
+  conn.on("close", ()=>{
+    connections = connections.filter(c=>c!==conn)
+    peerCount.innerText = (connections.length+1)+" peserta"
   })
-
 }
 
 /* PERIODIC PEER SHARE */
-
 setInterval(()=>{
-  broadcast({
-    type:"peers",
-    peers:[...knownPeers]
-  })
+  broadcast({ type:"peers", peers:[...knownPeers] })
 },4000)
 
 </script>
