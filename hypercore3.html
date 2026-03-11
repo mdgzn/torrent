@@ -1,9 +1,8 @@
-```html
 <!DOCTYPE html>
-<html lang="id">
+<html>
 <head>
 <meta charset="UTF-8">
-<title>P2P Auto Room Chat</title>
+<title>Mini WhatsApp P2P</title>
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 
@@ -11,62 +10,80 @@
 
 body{
 font-family:system-ui;
-background:#f3f4f6;
+background:#e5ddd5;
 margin:0;
 }
 
 header{
-background:#111827;
+background:#075e54;
 color:white;
-padding:20px;
+padding:15px;
 text-align:center;
 }
 
 .container{
 max-width:900px;
 margin:auto;
-padding:20px;
+padding:15px;
 }
 
 .card{
 background:white;
-padding:20px;
+padding:15px;
 border-radius:10px;
-margin-bottom:20px;
-box-shadow:0 5px 12px rgba(0,0,0,.05);
+margin-bottom:15px;
+box-shadow:0 4px 10px rgba(0,0,0,.08);
 }
 
 input,button{
 width:100%;
 padding:10px;
-margin-top:8px;
+margin-top:6px;
 border-radius:6px;
 border:1px solid #ccc;
 }
 
 button{
-background:#2563eb;
+background:#25d366;
 color:white;
 border:none;
 cursor:pointer;
 }
 
-button:hover{
-background:#1e40af;
-}
-
 #chat{
-background:#0f172a;
-color:white;
-padding:10px;
-height:300px;
+background:#efeae2;
+height:320px;
 overflow:auto;
-font-family:monospace;
+padding:10px;
+display:flex;
+flex-direction:column;
+gap:6px;
 }
 
-.status{
+.msg{
+max-width:70%;
+padding:8px 10px;
+border-radius:10px;
 font-size:14px;
-color:#666;
+}
+
+.me{
+background:#dcf8c6;
+align-self:flex-end;
+}
+
+.other{
+background:white;
+align-self:flex-start;
+}
+
+.name{
+font-size:11px;
+opacity:.6;
+}
+
+#peers{
+font-size:13px;
 }
 
 </style>
@@ -75,33 +92,37 @@ color:#666;
 <body>
 
 <header>
-<h1>P2P Group Chat</h1>
-<p>Auto Join Room (tanpa kirim peer ID)</p>
+<h2>Mini WhatsApp P2P</h2>
+<p>Chat langsung antar browser</p>
 </header>
 
 <div class="container">
 
 <div class="card">
 
-<h3>Join Room</h3>
+<b>Identitas</b>
 
-<input id="username" placeholder="Nama kamu">
+<input id="username">
 
-<input id="room" placeholder="Nama room">
+<p>ID kamu:</p>
+<input id="myId" readonly>
 
-<button id="joinBtn">Join Chat</button>
+<p>Connect ke Peer:</p>
+<input id="peerId" placeholder="Masukkan Peer ID">
 
-<p class="status" id="status"></p>
+<button id="connectBtn">Connect</button>
+
+<p>Peer Online:</p>
+<div id="peers">0</div>
 
 </div>
 
-<div class="card">
 
-<h3>Chat</h3>
+<div class="card">
 
 <div id="chat"></div>
 
-<input id="msg" placeholder="Tulis pesan...">
+<input id="messageInput" placeholder="Ketik pesan...">
 
 <button id="sendBtn">Kirim</button>
 
@@ -109,89 +130,155 @@ color:#666;
 
 </div>
 
+
 <script>
 
-let peer
-let connections=[]
+/* ========= USERNAME OTOMATIS ========= */
+
+const names=[
+"Anto","Budi","Sari","Rina","Dodi",
+"Joko","Dina","Rudi","Sinta","Arif",
+"Putri","Agus","Fajar","Tono","Lina"
+]
+
+function randomUsername(){
+
+const name = names[Math.floor(Math.random()*names.length)]
+const number = Math.floor(1000 + Math.random()*9000)
+
+return name + number
+
+}
+
+if(!localStorage.username){
+localStorage.username=randomUsername()
+}
+
+const usernameInput=document.getElementById("username")
+usernameInput.value=localStorage.username
+
+usernameInput.onchange=()=>{
+localStorage.username=usernameInput.value
+}
+
+
+/* ========= VARIABEL ========= */
+
 let chatLog=[]
+let connections=[]
+
+const peer=new Peer()
 
 const chat=document.getElementById("chat")
-const username=document.getElementById("username")
-const roomInput=document.getElementById("room")
-const joinBtn=document.getElementById("joinBtn")
+const myId=document.getElementById("myId")
+const peerId=document.getElementById("peerId")
+const connectBtn=document.getElementById("connectBtn")
 const sendBtn=document.getElementById("sendBtn")
-const msgInput=document.getElementById("msg")
-const status=document.getElementById("status")
+const messageInput=document.getElementById("messageInput")
+const peers=document.getElementById("peers")
+
+
+/* ========= RENDER CHAT ========= */
 
 function render(){
 
-chat.innerText=chatLog
-.map(m=>`${m.user}: ${m.text}`)
-.join("\n")
+chat.innerHTML=""
+
+chatLog.forEach(m=>{
+
+const div=document.createElement("div")
+
+div.className="msg "+(m.user===usernameInput.value?"me":"other")
+
+div.innerHTML=`<div class="name">${m.user}</div>${m.text}`
+
+chat.appendChild(div)
+
+})
 
 chat.scrollTop=chat.scrollHeight
 
 }
 
-function broadcast(data){
 
+/* ========= BROADCAST ========= */
+
+function broadcast(data){
 connections.forEach(c=>c.send(data))
+}
+
+
+/* ========= SEND MESSAGE ========= */
+
+function sendMessage(){
+
+const text=messageInput.value.trim()
+if(!text) return
+
+const msg={
+user:usernameInput.value,
+text,
+time:Date.now()
+}
+
+chatLog.push(msg)
+
+render()
+
+broadcast({
+type:"chat",
+msg
+})
+
+messageInput.value=""
 
 }
 
-joinBtn.onclick=()=>{
+sendBtn.onclick=sendMessage
 
-const room=roomInput.value.trim()
+messageInput.addEventListener("keypress",e=>{
+if(e.key==="Enter") sendMessage()
+})
 
-if(!room) return
 
-const myId=room+"-"+Math.random().toString(36).slice(2,8)
-
-peer=new Peer(myId)
-
-status.innerText="Joining room..."
+/* ========= PEER OPEN ========= */
 
 peer.on("open",id=>{
+myId.value=id
+})
 
-status.innerText="Connected as "+id
 
-/* connect to possible peers */
+/* ========= CONNECT ========= */
 
-for(let i=0;i<20;i++){
+connectBtn.onclick=()=>{
 
-const guess=room+"-"+i
-
-if(guess!==id){
-
-try{
-
-const conn=peer.connect(guess)
+const conn=peer.connect(peerId.value)
 
 setup(conn)
 
-}catch{}
-
 }
 
-}
 
-})
+/* ========= INCOMING ========= */
 
 peer.on("connection",conn=>{
 setup(conn)
 })
 
-}
+
+/* ========= SETUP CONNECTION ========= */
 
 function setup(conn){
 
 connections.push(conn)
 
+peers.innerText=connections.length
+
 conn.on("open",()=>{
 
 conn.send({
 type:"sync",
-log:chatLog
+chatLog
 })
 
 })
@@ -201,44 +288,23 @@ conn.on("data",data=>{
 if(data.type==="chat"){
 
 chatLog.push(data.msg)
-
 render()
 
 }
 
 if(data.type==="sync"){
 
-chatLog=data.log
-
+chatLog=data.chatLog
 render()
 
 }
 
 })
 
-}
-
-sendBtn.onclick=()=>{
-
-const text=msgInput.value.trim()
-
-if(!text) return
-
-const message={
-user:username.value||"anon",
-text
-}
-
-chatLog.push(message)
-
-render()
-
-broadcast({
-type:"chat",
-msg:message
+conn.on("close",()=>{
+connections=connections.filter(c=>c!==conn)
+peers.innerText=connections.length
 })
-
-msgInput.value=""
 
 }
 
@@ -246,4 +312,3 @@ msgInput.value=""
 
 </body>
 </html>
-```
