@@ -3,49 +3,77 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Obrolan Seo Mesh</title>
+<title>Obrolan Seo Mesh Full-Mesh</title>
+
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+
 <style>
-*{box-sizing:border-box}body{margin:0;font-family:system-ui;background:#111b21}.app{display:flex;flex-direction:column;height:100dvh;max-width:500px;margin:auto;background:#0b141a;color:white}.header{background:#202c33;padding:10px;display:flex;align-items:center;gap:10px}.avatar{width:36px;height:36px;border-radius:50%;background:#25d366;display:flex;align-items:center;justify-content:center;font-weight:bold}.groupname{font-size:16px;font-weight:600}.status{font-size:12px;opacity:.7}.setup{padding:8px;background:#111b21;font-size:12px;display:flex;flex-direction:row;gap:8px;flex-wrap:wrap}.setup button{padding:10px 0;border:none;border-radius:6px;background:#25d366;color:white;cursor:pointer;flex:1 1 120px;text-align:center;min-width:100px}.setup input{display:none}.chat{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:6px}.msg{max-width:80%;padding:8px 10px;border-radius:8px;font-size:14px;word-break:break-word}.me{background:#005c4b;align-self:flex-end}.other{background:#202c33;align-self:flex-start}.sender{font-size:12px;font-weight:600;color:#25d366;margin-bottom:2px}.time{font-size:10px;opacity:.6;text-align:right;margin-top:2px}.footer{display:flex;gap:6px;padding:8px;background:#202c33;position:sticky;bottom:0}.footer input{flex:1;border:none;border-radius:20px;padding:10px;font-size:16px}.footer button{border:none;width:42px;height:42px;border-radius:50%;background:#25d366;color:white;font-size:16px;cursor:pointer}img.chatimg{max-width:200px;border-radius:6px;margin-top:4px}@media(max-width:360px){.setup button{flex:1 1 100px}}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui;background:#111b21;color:white}
+.app{display:flex;flex-direction:column;height:100dvh;max-width:500px;margin:auto;background:#0b141a}
+.header{background:#202c33;padding:10px;display:flex;align-items:center;gap:10px}
+.avatar{width:36px;height:36px;border-radius:50%;background:#25d366;display:flex;align-items:center;justify-content:center;font-weight:bold}
+.groupname{font-size:16px;font-weight:600}
+.status{font-size:12px;opacity:.7}
+.setup{padding:8px;background:#111b21;font-size:12px;display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-start;align-items:center}
+.setup button{padding:10px 0;border:none;border-radius:6px;background:#25d366;color:white;cursor:pointer;flex:1 1 120px;text-align:center;min-width:100px}
+.setup input{display:none}
+.chat{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:6px}
+.msg{max-width:80%;padding:8px 10px;border-radius:8px;font-size:14px;word-break:break-word}
+.me{background:#005c4b;align-self:flex-end}
+.other{background:#202c33;align-self:flex-start}
+.sender{font-size:12px;font-weight:600;color:#25d366;margin-bottom:2px}
+.time{font-size:10px;opacity:.6;text-align:right;margin-top:2px}
+.footer{display:flex;gap:6px;padding:8px;background:#202c33;position:sticky;bottom:0}
+.footer input{flex:1;border:none;border-radius:20px;padding:10px;font-size:16px}
+.footer button{border:none;width:42px;height:42px;border-radius:50%;background:#25d366;color:white;font-size:16px;cursor:pointer}
+img.chatimg{max-width:200px;border-radius:6px;margin-top:4px}
+a.chatfile{color:#25d366;text-decoration:none;display:block;margin-top:4px}
+@media(max-width:360px){.setup button{flex:1 1 100px}}
 </style>
 </head>
+
 <body>
 <div class="app">
-  <div class="header">
-    <div class="avatar">O</div>
-    <div>
-      <div class="groupname">Obrolan Seo</div>
-      <div class="status" id="peerCount">1 peserta</div>
-    </div>
-  </div>
 
-  <div class="setup">
-    <input id="myId" readonly>
-    <button id="copyBtn">Copy/Share ID</button>
-    <input id="peerId" placeholder="ID peer lain">
-    <button id="pasteBtn">Paste & Connect</button>
-  </div>
-
-  <div class="chat" id="chat"></div>
-
-  <div class="footer">
-    <input id="messageInput" placeholder="Ketik pesan">
-    <input type="file" id="fileInput" style="display:none">
-    <button id="fileBtn">📎</button>
-    <button id="sendBtn">➤</button>
+<div class="header">
+  <div class="avatar">O</div>
+  <div>
+    <div class="groupname">Obrolan Seo Mesh</div>
+    <div class="status" id="peerCount">1 peserta</div>
   </div>
 </div>
 
+<div class="setup">
+  <input id="myId" readonly>
+  <button id="copyBtn">Copy/Share ID</button>
+
+  <input id="peerId" placeholder="ID peer lain">
+  <button id="pasteBtn">Paste & Connect</button>
+
+  <input type="file" id="fileInput" style="display:none">
+  <button id="fileBtn">📎</button>
+</div>
+
+<div class="chat" id="chat"></div>
+
+<div class="footer">
+  <input id="messageInput" placeholder="Ketik pesan">
+  <button id="sendBtn">➤</button>
+</div>
+
+</div>
+
 <script>
-/* USERNAME AUTO */
+/* USERNAME */
 const names=["Anto","Budi","Sari","Rina","Dodi","Joko","Dina","Rudi","Sinta","Arif"];
-function randomUser(){return names[Math.floor(Math.random()*names.length)]+Math.floor(1000+Math.random()*9000);}
+function randomUser(){ return names[Math.floor(Math.random()*names.length)] + Math.floor(1000+Math.random()*9000);}
 if(!localStorage.username) localStorage.username=randomUser();
 const username = localStorage.username;
 
 /* VARIABLES */
 let connections=[], knownPeers=new Set(), chatLog=[], seenMessages=new Set();
-const peer=new Peer();
+const peer = new Peer();
 const chat=document.getElementById("chat");
 const myId=document.getElementById("myId");
 const sendBtn=document.getElementById("sendBtn");
@@ -64,10 +92,10 @@ function render(){
     const box=document.createElement("div");
     box.className="msg "+(m.user===username?"me":"other");
     let html="";
-    if(m.user!==username) html+=`<div class="sender">${m.user}</div>`;
+    if(m.user!==username) html=`<div class="sender">${m.user}</div>`;
     if(m.type==="text") html+=m.text;
     if(m.type==="image") html+=`<img class="chatimg" src="${m.data}">`;
-    if(m.type==="file") html+=`<a href="${m.data}" download="${m.name}">📎 ${m.name}</a>`;
+    if(m.type==="file") html+=`<a class="chatfile" href="${m.data}" download="${m.name}">📎 ${m.name}</a>`;
     const time=new Date(m.time).toLocaleTimeString();
     box.innerHTML=html+`<div class="time">${time}</div>`;
     chat.appendChild(box);
@@ -76,11 +104,7 @@ function render(){
 }
 
 /* BROADCAST */
-function broadcast(data, sender=null){
-  connections.forEach(conn=>{
-    if(conn!==sender) conn.send(data);
-  });
-}
+function broadcast(data,sender=null){connections.forEach(c=>{if(c!==sender)c.send(data);});}
 
 /* CONNECT PEER */
 function connectPeer(pid){
@@ -90,47 +114,38 @@ function connectPeer(pid){
   setup(conn);
 }
 
-/* SEND MESSAGE */
+/* SEND TEXT */
 function send(){
   const text=messageInput.value.trim();
   if(!text) return;
-  const msg={type:"text",user:username,text,time:Date.now()};
-  seenMessages.add(msg.id=crypto.randomUUID());
+  const msg={type:"text",user:username,text,time:Date.now(),id:crypto.randomUUID()};
+  seenMessages.add(msg.id);
   chatLog.push(msg);
   render();
   broadcast({type:"chat",msg});
   messageInput.value="";
 }
 sendBtn.onclick=send;
-messageInput.addEventListener("keypress",e=>{if(e.key==="Enter") send();});
+messageInput.addEventListener("keypress",e=>{if(e.key==="Enter")send();});
 
-/* COPY ID */
-copyBtn.onclick=async()=>{
-  try{await navigator.clipboard.writeText(peer.id);alert("ID kamu disalin!");}
-  catch(e){console.error("Gagal menyalin ID",e);}
-}
-
-/* PASTE ID → auto-connect */
+/* COPY / PASTE */
+copyBtn.onclick=()=>navigator.clipboard.writeText(peer.id).then(()=>alert("ID disalin!")).catch(e=>console.error(e));
 pasteBtn.onclick=async()=>{
-  try{
-    const text=await navigator.clipboard.readText();
-    const pid=text.trim();
-    if(pid && pid!==peer.id){peerId.value=pid; connectPeer(pid);}
-  }catch(e){console.error("Gagal membaca clipboard",e);}
+  const pid=(await navigator.clipboard.readText()).trim();
+  if(pid && pid!==peer.id){peerId.value=pid;connectPeer(pid);}
 }
 
-/* FILE SEND */
+/* FILE / FOTO */
 fileBtn.onclick=()=>fileInput.click();
 fileInput.onchange=()=>{
   const file=fileInput.files[0];
-  if(!file) return;
   const reader=new FileReader();
   reader.onload=()=>{
     let msg;
     if(file.type.startsWith("image")){
-      msg={type:"image",user:username,data:reader.result,time:Date.now()};
+      msg={type:"image",user:username,data:reader.result,time:Date.now(),id:crypto.randomUUID()};
     }else{
-      msg={type:"file",user:username,data:reader.result,name:file.name,time:Date.now()};
+      msg={type:"file",user:username,data:reader.result,name:file.name,time:Date.now(),id:crypto.randomUUID()};
     }
     chatLog.push(msg);
     render();
@@ -140,7 +155,7 @@ fileInput.onchange=()=>{
 }
 
 /* PEER OPEN */
-peer.on("open",id=>{myId.value=id; knownPeers.add(id);});
+peer.on("open",id=>{myId.value=id;knownPeers.add(id);});
 
 /* INCOMING CONNECTION */
 peer.on("connection",conn=>setup(conn));
@@ -159,8 +174,7 @@ function setup(conn){
   conn.on("data",data=>{
     if(data.type==="chat"){
       const msg=data.msg;
-      if(msg.id && seenMessages.has(msg.id)) return;
-      if(!msg.id) msg.id=crypto.randomUUID();
+      if(seenMessages.has(msg.id)) return;
       seenMessages.add(msg.id);
       chatLog.push(msg);
       render();
@@ -168,7 +182,6 @@ function setup(conn){
     }
     if(data.type==="sync"){
       data.chatLog.forEach(msg=>{
-        if(!msg.id) msg.id=crypto.randomUUID();
         if(!seenMessages.has(msg.id)){
           seenMessages.add(msg.id);
           chatLog.push(msg);
@@ -192,8 +205,18 @@ function setup(conn){
   });
 }
 
-/* PERIODIC PEER SHARE */
+/* FULL-MESH PERIODIC CONNECT */
+setInterval(()=>{
+  knownPeers.forEach(pid=>{
+    if(pid!==peer.id && !connections.find(c=>c.peer===pid)){
+      connectPeer(pid);
+    }
+  });
+},5000);
+
+/* PERIODIC BROADCAST PEERS */
 setInterval(()=>{broadcast({type:"peers",peers:[...knownPeers]});},4000);
+
 </script>
 </body>
 </html>
