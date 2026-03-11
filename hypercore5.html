@@ -5,7 +5,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<title>P2P Chat Mesh</title>
+<title>Obrolan Seo Mesh</title>
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 
@@ -23,13 +23,11 @@ background:#111b21;
 display:flex;
 flex-direction:column;
 height:100dvh;
-max-width:520px;
+max-width:500px;
 margin:auto;
 background:#0b141a;
 color:white;
 }
-
-/* HEADER */
 
 .header{
 background:#202c33;
@@ -60,7 +58,28 @@ font-size:12px;
 opacity:.7;
 }
 
-/* CHAT */
+.setup{
+padding:8px;
+background:#111b21;
+font-size:12px;
+}
+
+.setup input{
+width:100%;
+padding:8px;
+margin-top:5px;
+border:none;
+border-radius:6px;
+}
+
+.setup button{
+margin-top:5px;
+padding:8px;
+border:none;
+border-radius:6px;
+background:#25d366;
+color:white;
+}
 
 .chat{
 flex:1;
@@ -103,14 +122,6 @@ text-align:right;
 margin-top:2px;
 }
 
-.chat img{
-max-width:200px;
-border-radius:6px;
-margin-top:5px;
-}
-
-/* FOOTER */
-
 .footer{
 display:flex;
 gap:6px;
@@ -137,13 +148,6 @@ font-size:16px;
 cursor:pointer;
 }
 
-.members{
-font-size:11px;
-padding:4px 10px;
-background:#111b21;
-color:#bbb;
-}
-
 </style>
 
 </head>
@@ -154,7 +158,7 @@ color:#bbb;
 
 <div class="header">
 
-<div class="avatar">P</div>
+<div class="avatar">O</div>
 
 <div>
 <div class="groupname">Obrolan Seo</div>
@@ -163,18 +167,23 @@ color:#bbb;
 
 </div>
 
-<div class="members" id="memberList"></div>
+<div class="setup">
+
+ID kamu
+<input id="myId" readonly>
+
+Connect ke Peer
+<input id="peerId" placeholder="Masukkan peer ID">
+
+<button id="connectBtn">Connect</button>
+
+</div>
 
 <div class="chat" id="chat"></div>
 
 <div class="footer">
 
 <input id="messageInput" placeholder="Ketik pesan">
-
-<input type="file" id="fileInput" style="display:none">
-
-<button id="fileBtn">📎</button>
-
 <button id="sendBtn">➤</button>
 
 </div>
@@ -183,7 +192,7 @@ color:#bbb;
 
 <script>
 
-/* USERNAME */
+/* USERNAME AUTO */
 
 const names=["Anto","Budi","Sari","Rina","Dodi","Joko","Dina","Rudi","Sinta","Arif"]
 
@@ -198,44 +207,28 @@ localStorage.username=randomUser()
 
 const username=localStorage.username
 
-/* VAR */
+/* VARIABLES */
 
 let connections=[]
+let knownPeers=new Set()
 let chatLog=[]
 let seenMessages=new Set()
-let knownPeers=new Set()
 
 const peer=new Peer()
 
 const chat=document.getElementById("chat")
-const peerCount=document.getElementById("peerCount")
-const memberList=document.getElementById("memberList")
-
-const messageInput=document.getElementById("messageInput")
+const myId=document.getElementById("myId")
+const peerId=document.getElementById("peerId")
+const connectBtn=document.getElementById("connectBtn")
 const sendBtn=document.getElementById("sendBtn")
+const messageInput=document.getElementById("messageInput")
+const peerCount=document.getElementById("peerCount")
 
-const fileBtn=document.getElementById("fileBtn")
-const fileInput=document.getElementById("fileInput")
-
-/* UI */
-
-function updateMembers(){
-
-const peers=[...knownPeers]
-
-peerCount.innerText=(peers.length)+" peserta"
-
-memberList.innerText="online: "+peers.join(", ")
-
-}
-
-/* RENDER */
+/* RENDER CHAT */
 
 function render(){
 
 chat.innerHTML=""
-
-chatLog.sort((a,b)=>a.time-b.time)
 
 chatLog.forEach(m=>{
 
@@ -249,17 +242,7 @@ if(m.user!==username){
 html+=`<div class="sender">${m.user}</div>`
 }
 
-if(m.type==="text"){
 html+=m.text
-}
-
-if(m.type==="image"){
-html+=`<img src="${m.data}">`
-}
-
-if(m.type==="file"){
-html+=`<a href="${m.data}" download="${m.name}">📎 ${m.name}</a>`
-}
 
 const time=new Date(m.time).toLocaleTimeString()
 
@@ -285,7 +268,21 @@ conn.send(data)
 
 }
 
-/* SEND TEXT */
+/* CONNECT PEER */
+
+function connectPeer(pid){
+
+if(pid===peer.id) return
+
+if(connections.find(c=>c.peer===pid)) return
+
+const conn=peer.connect(pid)
+
+setup(conn)
+
+}
+
+/* SEND MESSAGE */
 
 function send(){
 
@@ -294,7 +291,6 @@ if(!text) return
 
 const msg={
 id:crypto.randomUUID(),
-type:"text",
 user:username,
 text,
 time:Date.now()
@@ -315,81 +311,29 @@ messageInput.value=""
 
 }
 
-/* SEND FILE */
+sendBtn.onclick=send
 
-fileBtn.onclick=()=>fileInput.click()
-
-fileInput.onchange=()=>{
-
-const file=fileInput.files[0]
-
-const reader=new FileReader()
-
-reader.onload=()=>{
-
-let msg
-
-if(file.type.startsWith("image")){
-msg={
-id:crypto.randomUUID(),
-type:"image",
-user:username,
-data:reader.result,
-time:Date.now()
-}
-}else{
-msg={
-id:crypto.randomUUID(),
-type:"file",
-user:username,
-data:reader.result,
-name:file.name,
-time:Date.now()
-}
-}
-
-seenMessages.add(msg.id)
-
-chatLog.push(msg)
-
-render()
-
-broadcast({
-type:"chat",
-msg
+messageInput.addEventListener("keypress",e=>{
+if(e.key==="Enter") send()
 })
 
-}
-
-reader.readAsDataURL(file)
-
-}
-
-/* PEER */
+/* PEER OPEN */
 
 peer.on("open",id=>{
 
-knownPeers.add(id)
+myId.value=id
 
-updateMembers()
+knownPeers.add(id)
 
 })
 
-/* CONNECT */
+/* MANUAL CONNECT */
 
-function connectToPeer(pid){
-
-if(pid===peer.id) return
-
-if([...connections].find(c=>c.peer===pid)) return
-
-const conn=peer.connect(pid)
-
-setup(conn)
-
+connectBtn.onclick=()=>{
+connectPeer(peerId.value)
 }
 
-/* RECEIVE CONNECTION */
+/* INCOMING CONNECTION */
 
 peer.on("connection",conn=>{
 setup(conn)
@@ -403,14 +347,18 @@ connections.push(conn)
 
 knownPeers.add(conn.peer)
 
-updateMembers()
+peerCount.innerText=(connections.length+1)+" peserta"
 
 conn.on("open",()=>{
+
+/* sync chat */
 
 conn.send({
 type:"sync",
 chatLog
 })
+
+/* intro peers */
 
 conn.send({
 type:"peers",
@@ -443,11 +391,13 @@ broadcast(data,conn)
 
 if(data.type==="sync"){
 
-data.chatLog.forEach(m=>{
+data.chatLog.forEach(msg=>{
 
-if(!seenMessages.has(m.id)){
-seenMessages.add(m.id)
-chatLog.push(m)
+if(!seenMessages.has(msg.id)){
+
+seenMessages.add(msg.id)
+chatLog.push(msg)
+
 }
 
 })
@@ -456,7 +406,7 @@ render()
 
 }
 
-/* PEER DISCOVERY */
+/* PEER INTRODUCTION */
 
 if(data.type==="peers"){
 
@@ -466,13 +416,11 @@ if(!knownPeers.has(pid)){
 
 knownPeers.add(pid)
 
-connectToPeer(pid)
+connectPeer(pid)
 
 }
 
 })
-
-updateMembers()
 
 }
 
@@ -482,7 +430,7 @@ conn.on("close",()=>{
 
 connections=connections.filter(c=>c!==conn)
 
-updateMembers()
+peerCount.innerText=(connections.length+1)+" peserta"
 
 })
 
@@ -497,15 +445,7 @@ type:"peers",
 peers:[...knownPeers]
 })
 
-},5000)
-
-/* EVENTS */
-
-sendBtn.onclick=send
-
-messageInput.addEventListener("keypress",e=>{
-if(e.key==="Enter") send()
-})
+},4000)
 
 </script>
 
