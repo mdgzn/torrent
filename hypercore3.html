@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>P2P WhatsApp Style Chat</title>
+<title>P2P WhatsApp Group</title>
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 
@@ -45,10 +45,6 @@ justify-content:center;
 font-weight:bold;
 }
 
-.name{
-font-size:15px;
-}
-
 .status{
 font-size:12px;
 opacity:.7;
@@ -58,7 +54,6 @@ opacity:.7;
 flex:1;
 overflow:auto;
 padding:10px;
-background:#0b141a;
 display:flex;
 flex-direction:column;
 gap:6px;
@@ -66,10 +61,9 @@ gap:6px;
 
 .msg{
 max-width:75%;
-padding:7px 10px;
+padding:8px;
 border-radius:8px;
 font-size:14px;
-position:relative;
 }
 
 .me{
@@ -85,15 +79,15 @@ align-self:flex-start;
 .time{
 font-size:10px;
 opacity:.6;
-margin-top:2px;
+margin-top:3px;
 text-align:right;
 }
 
 .footer{
-background:#202c33;
-padding:8px;
 display:flex;
 gap:6px;
+padding:8px;
+background:#202c33;
 }
 
 .footer input{
@@ -101,14 +95,13 @@ flex:1;
 border:none;
 padding:10px;
 border-radius:20px;
-outline:none;
 }
 
 .footer button{
-background:#25d366;
 border:none;
-padding:10px 16px;
+padding:10px;
 border-radius:20px;
+background:#25d366;
 cursor:pointer;
 }
 
@@ -119,19 +112,30 @@ background:#111b21;
 
 .setup input{
 width:100%;
-margin-top:5px;
 padding:8px;
+margin-top:5px;
 border-radius:6px;
 border:none;
 }
 
 .setup button{
-margin-top:6px;
+margin-top:5px;
 padding:8px;
 border:none;
 border-radius:6px;
 background:#25d366;
 cursor:pointer;
+}
+
+#peerList{
+font-size:12px;
+margin-top:5px;
+}
+
+img.chatimg{
+max-width:180px;
+border-radius:6px;
+margin-top:4px;
 }
 
 </style>
@@ -144,35 +148,44 @@ cursor:pointer;
 <div class="header">
 <div class="avatar" id="avatar">U</div>
 <div>
-<div class="name" id="usernameLabel"></div>
+<div id="usernameLabel"></div>
 <div class="status" id="status">offline</div>
 </div>
 </div>
 
 <div class="setup">
 
-Peer ID kamu:
+ID kamu:
 <input id="myId" readonly>
 
 Connect ke Peer:
-<input id="peerId" placeholder="Masukkan Peer ID">
+<input id="peerId" placeholder="Peer ID">
 
 <button id="connectBtn">Connect</button>
+
+<div id="peerList">Peer: 0</div>
 
 </div>
 
 <div class="chat" id="chat"></div>
 
 <div class="footer">
+
 <input id="messageInput" placeholder="Ketik pesan">
+
+<input type="file" id="fileInput" style="display:none">
+
+<button id="fileBtn">📎</button>
+
 <button id="sendBtn">➤</button>
+
 </div>
 
 </div>
 
 <script>
 
-/* ===== USERNAME OTOMATIS ===== */
+/* ===== USERNAME ===== */
 
 const names=["Anto","Budi","Sari","Rina","Dodi","Joko","Dina","Rudi","Sinta","Arif"]
 
@@ -204,6 +217,9 @@ const connectBtn=document.getElementById("connectBtn")
 const sendBtn=document.getElementById("sendBtn")
 const messageInput=document.getElementById("messageInput")
 const status=document.getElementById("status")
+const fileBtn=document.getElementById("fileBtn")
+const fileInput=document.getElementById("fileInput")
+const peerList=document.getElementById("peerList")
 
 /* ===== RENDER ===== */
 
@@ -214,14 +230,26 @@ chat.innerHTML=""
 chatLog.forEach(m=>{
 
 const box=document.createElement("div")
+
 box.className="msg "+(m.user===username?"me":"other")
+
+let html=""
+
+if(m.type==="text"){
+html=m.text
+}
+
+if(m.type==="image"){
+html=`<img class="chatimg" src="${m.data}">`
+}
+
+if(m.type==="file"){
+html=`<a href="${m.data}" download="${m.name}">📎 ${m.name}</a>`
+}
 
 const time=new Date(m.time).toLocaleTimeString()
 
-box.innerHTML=`
-${m.text}
-<div class="time">${time}</div>
-`
+box.innerHTML=html+`<div class="time">${time}</div>`
 
 chat.appendChild(box)
 
@@ -237,7 +265,19 @@ function broadcast(data){
 connections.forEach(c=>c.send(data))
 }
 
-/* ===== SEND ===== */
+/* ===== NOTIFICATION ===== */
+
+function notify(text){
+
+if(Notification.permission==="granted"){
+new Notification(text)
+}
+
+}
+
+Notification.requestPermission()
+
+/* ===== SEND TEXT ===== */
 
 function send(){
 
@@ -245,6 +285,7 @@ const text=messageInput.value.trim()
 if(!text) return
 
 const msg={
+type:"text",
 user:username,
 text,
 time:Date.now()
@@ -266,6 +307,49 @@ messageInput.addEventListener("keypress",e=>{
 if(e.key==="Enter") send()
 })
 
+/* ===== FILE ===== */
+
+fileBtn.onclick=()=>fileInput.click()
+
+fileInput.onchange=()=>{
+
+const file=fileInput.files[0]
+
+const reader=new FileReader()
+
+reader.onload=()=>{
+
+let msg
+
+if(file.type.startsWith("image")){
+msg={
+type:"image",
+user:username,
+data:reader.result,
+time:Date.now()
+}
+}else{
+msg={
+type:"file",
+user:username,
+data:reader.result,
+name:file.name,
+time:Date.now()
+}
+}
+
+chatLog.push(msg)
+
+render()
+
+broadcast({type:"chat",msg})
+
+}
+
+reader.readAsDataURL(file)
+
+}
+
 /* ===== PEER ===== */
 
 peer.on("open",id=>{
@@ -274,11 +358,8 @@ status.innerText="online"
 })
 
 connectBtn.onclick=()=>{
-
 const conn=peer.connect(peerId.value)
-
 setup(conn)
-
 }
 
 peer.on("connection",conn=>{
@@ -289,27 +370,37 @@ function setup(conn){
 
 connections.push(conn)
 
+peerList.innerText="Peer: "+connections.length
+
 conn.on("open",()=>{
-
-conn.send({
-type:"sync",
-chatLog
-})
-
+conn.send({type:"sync",chatLog})
 })
 
 conn.on("data",data=>{
 
 if(data.type==="chat"){
+
 chatLog.push(data.msg)
+
 render()
+
+notify("Pesan dari "+data.msg.user)
+
 }
 
 if(data.type==="sync"){
+
 chatLog=data.chatLog
+
 render()
+
 }
 
+})
+
+conn.on("close",()=>{
+connections=connections.filter(c=>c!==conn)
+peerList.innerText="Peer: "+connections.length
 })
 
 }
