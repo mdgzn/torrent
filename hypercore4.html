@@ -173,21 +173,16 @@ cursor:pointer;
 
 <div class="setup">
 
-<!-- ID sendiri -->
-ID kamu
-<div style="display:flex; gap:4px;">
-  <input id="myId" readonly>
-  <button id="copyBtn">Copy</button>
-</div>
+  <!-- ID sendiri hidden -->
+  <input id="myId" readonly style="display:none;">
+  <button id="copyBtn">Copy ID</button>
 
-<!-- Connect ke peer lain -->
-Connect ke Peer
-<div style="display:flex; gap:4px;">
-  <input id="peerId" placeholder="Masukkan ID peer lain">
-  <button id="connectBtn">Connect</button>
-</div>
+  <!-- Paste ID peer lain -->
+  <input id="peerId" placeholder="ID peer lain" style="display:none;">
+  <button id="pasteBtn">Paste</button>
 
 </div>
+
 
 <div class="chat" id="chat"></div>
 
@@ -281,10 +276,28 @@ sendBtn.onclick = send
 messageInput.addEventListener("keypress", e=>{ if(e.key==="Enter") send() })
 
 /* COPY ID */
-copyBtn.onclick = () => {
-  navigator.clipboard.writeText(peer.id)
-    .then(()=>alert("ID disalin!"))
-    .catch(err=>console.error("Gagal menyalin ID", err))
+/* COPY ID */
+copyBtn.onclick = async () => {
+  try {
+    await navigator.clipboard.writeText(peer.id)
+    alert("ID kamu disalin!")
+  } catch(e) {
+    console.error("Gagal menyalin ID", e)
+  }
+}
+
+/* PASTE ID peer lain dan langsung connect */
+pasteBtn.onclick = async () => {
+  try {
+    const text = await navigator.clipboard.readText()
+    const pid = text.trim()
+    if(pid && pid !== peer.id){
+      peerId.value = pid   // optional, input tetap hidden
+      connectPeer(pid)     // langsung auto-connect
+    }
+  } catch(e) {
+    console.error("Gagal membaca clipboard", e)
+  }
 }
 
 /* CONNECT BUTTON */
