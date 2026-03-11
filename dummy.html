@@ -2,60 +2,190 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mini WebTorrent Hybrid Peer</title>
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Belajar Torrent P2P - WebTorrent Demo</title>
 
 <script src="https://cdn.jsdelivr.net/npm/webtorrent@0.115.0/webtorrent.min.js"></script>
 
 <style>
+
 body{
-font-family:system-ui,Arial;
+font-family:system-ui,-apple-system,Segoe UI,Roboto;
+background:#f4f6f9;
+margin:0;
+color:#333;
+}
+
+header{
+background:#1f2937;
+color:white;
+padding:25px;
 text-align:center;
+}
+
+header p{
+opacity:.8;
+margin-top:5px;
+}
+
+.container{
+max-width:900px;
+margin:auto;
 padding:20px;
+}
+
+.card{
+background:white;
+padding:20px;
+margin-bottom:20px;
+border-radius:10px;
+box-shadow:0 5px 15px rgba(0,0,0,.05);
+}
+
+h2{
+margin-top:0;
 }
 
 button,input{
 width:100%;
-max-width:420px;
-padding:8px;
-margin:6px auto;
-display:block;
+padding:10px;
+margin-top:8px;
+border-radius:6px;
+border:1px solid #ccc;
+font-size:14px;
+}
+
+button{
+background:#2563eb;
+color:white;
+border:none;
+cursor:pointer;
+}
+
+button:hover{
+background:#1e4fd8;
+}
+
+.file{
+border-top:1px solid #eee;
+margin-top:12px;
+padding-top:12px;
 }
 
 video,audio{
 width:100%;
-max-width:420px;
 margin-top:10px;
 }
 
-.file{
-border-top:1px solid #ddd;
-margin-top:10px;
-padding-top:10px;
+.info{
+font-size:14px;
+color:#555;
 }
+
+footer{
+text-align:center;
+padding:20px;
+font-size:13px;
+color:#777;
+}
+
 </style>
 </head>
+
 <body>
 
-<h3>Mini WebTorrent Hybrid Peer</h3>
+<header>
+<h1>Belajar Torrent P2P di Browser</h1>
+<p>Demo sederhana berbagi file menggunakan WebTorrent</p>
+</header>
 
-<!-- UPLOAD ASLI -->
-<button id="uploadBtn">Upload File Asli</button>
+<div class="container">
+
+<div class="card">
+
+<h2>📤 Seeder (Berbagi File)</h2>
+
+<p class="info">
+Seeder adalah pengguna yang membagikan file ke jaringan torrent.
+</p>
+
+<button id="uploadBtn">Upload File dari Komputer</button>
 <input type="file" id="fileInput" multiple style="display:none">
 
-<!-- DUMMY -->
-<button id="dummyBtn">Gunakan Dummy File</button>
+<button id="dummyBtn">Gunakan Dummy File (Simulasi)</button>
 
 <p id="seedInfo"></p>
 
-<hr>
+</div>
 
-<!-- JOIN SWARM -->
-<input type="text" id="magnetInput" placeholder="Magnet / Info-hash WebTorrent">
+
+<div class="card">
+
+<h2>🔗 Magnet Link</h2>
+
+<p class="info">
+Magnet link adalah identitas torrent yang digunakan untuk menemukan file di jaringan P2P.
+</p>
+
+<input id="magnetInput" placeholder="Magnet link akan muncul di sini">
+
+</div>
+
+
+<div class="card">
+
+<h2>📥 Downloader (Mengambil File)</h2>
+
+<p class="info">
+Masukkan magnet link dari seeder lalu klik Join untuk mulai terhubung dengan peer lain.
+</p>
+
 <button id="joinBtn">Join Swarm</button>
 
-<div id="viewer"></div>
 <div id="downloads"></div>
+
+</div>
+
+
+<div class="card">
+
+<h2>📚 Panduan Penggunaan</h2>
+
+<ol class="info">
+
+<li>
+Klik <b>Upload File</b> untuk berbagi file asli dari komputer.
+</li>
+
+<li>
+Atau klik <b>Dummy File</b> untuk membuat file simulasi.
+</li>
+
+<li>
+Setelah file di-seed, sistem akan menghasilkan <b>Magnet Link</b>.
+</li>
+
+<li>
+Salin magnet tersebut ke pengguna lain.
+</li>
+
+<li>
+Pengguna lain dapat memasukkan magnet lalu klik <b>Join Swarm</b>.
+</li>
+
+<li>
+File akan diunduh langsung dari peer menggunakan teknologi <b>P2P</b>.
+</li>
+
+</ol>
+
+</div>
+
+</div>
+
+<footer>
+Demo edukasi WebTorrent • Peer-to-Peer file sharing di browser
+</footer>
 
 <script>
 
@@ -67,109 +197,96 @@ const dummyBtn = document.getElementById("dummyBtn")
 const seedInfo = document.getElementById("seedInfo")
 const magnetInput = document.getElementById("magnetInput")
 const joinBtn = document.getElementById("joinBtn")
-const viewer = document.getElementById("viewer")
 const downloads = document.getElementById("downloads")
 
-let currentTorrent = null
+let currentTorrent=null
 
 
-/* =====================
-UPLOAD FILE ASLI
-===================== */
+uploadBtn.onclick=()=>fileInput.click()
 
-uploadBtn.onclick = ()=> fileInput.click()
+fileInput.onchange=e=>{
 
-fileInput.onchange = e => {
-
-const files = [...e.target.files]
+const files=[...e.target.files]
 
 if(!files.length) return
 
 if(currentTorrent) currentTorrent.destroy()
 
-client.seed(files, torrent=>{
+client.seed(files,torrent=>{
 
-currentTorrent = torrent
+currentTorrent=torrent
 
-seedInfo.textContent = "Seeding "+files.length+" file"
-magnetInput.value = torrent.magnetURI
+seedInfo.textContent="Seeding "+files.length+" file"
+magnetInput.value=torrent.magnetURI
 
 })
 
 }
 
 
-/* =====================
-DUMMY FILE VIRTUAL
-===================== */
-
-dummyBtn.onclick = ()=>{
+dummyBtn.onclick=()=>{
 
 if(currentTorrent) currentTorrent.destroy()
 
-// membuat dummy file virtual
-const random = Math.random().toString(36).slice(2)
+const random=Math.random().toString(36).slice(2)
 
-const files = [
+const files=[
 
 new File(
-["Ini adalah dummy file pertama"],
-"dummy1.txt",
+["Ini adalah file dummy untuk pembelajaran torrent"],
+"belajar_torrent.txt",
 {type:"text/plain"}
 ),
 
 new File(
-["Dummy file kedua dengan ID "+random],
-"dummy2.txt",
+["Dummy kedua ID "+random],
+"contoh_data.txt",
 {type:"text/plain"}
-),
-
-new File(
-["0".repeat(500000)],
-"dummy_video.mp4",
-{type:"video/mp4"}
 )
 
 ]
 
-client.seed(files, torrent=>{
+client.seed(files,torrent=>{
 
-currentTorrent = torrent
+currentTorrent=torrent
 
-seedInfo.textContent = "Seeding dummy files"
-magnetInput.value = torrent.magnetURI
+seedInfo.textContent="Seeding dummy file"
+magnetInput.value=torrent.magnetURI
 
 })
 
 }
 
 
-/* =====================
-JOIN TORRENT
-===================== */
+joinBtn.onclick=()=>{
 
-joinBtn.onclick = ()=>{
-
-const magnet = magnetInput.value.trim()
+const magnet=magnetInput.value.trim()
 
 if(!magnet) return
 
-client.add(magnet, torrent=>{
+downloads.innerHTML="Menghubungkan ke peer..."
+
+client.add(magnet,torrent=>{
 
 downloads.innerHTML=""
 
 torrent.files.forEach(file=>{
 
-const box = document.createElement("div")
+const box=document.createElement("div")
 box.className="file"
+
+const title=document.createElement("b")
+title.textContent=file.name
+
+box.appendChild(title)
 
 if(file.name.match(/\.(mp4|webm|mp3)$/i)){
 
-const media = document.createElement(
+const media=document.createElement(
 file.name.match(/mp3$/)?"audio":"video"
 )
 
-media.controls = true
+media.controls=true
 
 file.appendTo(media)
 
@@ -177,22 +294,17 @@ box.appendChild(media)
 
 }
 
-const btn = document.createElement("button")
+const btn=document.createElement("button")
 btn.textContent="Download "+file.name
 
 btn.onclick=()=>{
 
-btn.textContent="Menyiapkan..."
-
 file.getBlob((err,blob)=>{
 
 const a=document.createElement("a")
-
 a.href=URL.createObjectURL(blob)
 a.download=file.name
 a.click()
-
-btn.textContent="Download ulang"
 
 })
 
@@ -207,8 +319,6 @@ downloads.appendChild(box)
 })
 
 }
-
-client.on("error",console.error)
 
 </script>
 
