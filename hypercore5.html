@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>P2P Hypercore Chat Safe Demo</title>
+<title>P2P Hypercore Chat Demo</title>
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 
@@ -62,6 +62,7 @@ button{
   border-radius: 6px;
 }
 
+/* Responsive untuk mobile */
 @media (max-width: 600px){
   .card{
     padding: 15px;
@@ -82,8 +83,8 @@ button{
 <body>
 
 <header>
-  <h1>P2P Group Chat Safe Demo</h1>
-  <p>Chat P2P tanpa kehilangan history</p>
+  <h1>P2P Group Chat Demo</h1>
+  <p>Konsep Hypercore append-only chat log</p>
 </header>
 
 <div class="container">
@@ -108,8 +109,8 @@ button{
 </div>
 
 <script>
-let chatLog = []      // semua pesan lokal
-let connections = []  // semua koneksi aktif
+let chatLog = []
+let connections = []
 
 const peer = new Peer()
 
@@ -126,24 +127,10 @@ function render(){
   chat.scrollTop = chat.scrollHeight
 }
 
-// Kirim pesan ke semua peer
 function broadcast(msg){
-  connections.forEach(c => {
-    if(c.open) c.send(msg)
-  })
+  connections.forEach(c => c.send(msg))
 }
 
-// Tambahkan pesan baru, hindari duplikat
-function addMessage(msg){
-  const exists = chatLog.some(m => m.time === msg.time && m.user === msg.user)
-  if(!exists){
-    chatLog.push(msg)
-    chatLog.sort((a,b)=>a.time - b.time) // urutkan berdasarkan waktu
-    render()
-  }
-}
-
-// Kirim pesan baru
 sendBtn.onclick = () => {
   const text = messageInput.value.trim()
   if(!text) return
@@ -154,52 +141,41 @@ sendBtn.onclick = () => {
     time: Date.now()
   }
 
-  addMessage(msg)
+  chatLog.push(msg)
+  render()
   broadcast({ type: "chat", msg })
   messageInput.value = ""
 }
 
-// Set ID peer
 peer.on("open", id => {
   myId.value = id
 })
 
-// Connect ke peer lain
 connectBtn.onclick = () => {
   const conn = peer.connect(peerId.value)
-  setupConnection(conn)
+  setup(conn)
 }
 
-// Handle koneksi masuk
 peer.on("connection", conn => {
-  setupConnection(conn)
+  setup(conn)
 })
 
-// Setup koneksi baru
-function setupConnection(conn){
+function setup(conn){
   connections.push(conn)
 
   conn.on("open", () => {
-    // Kirim semua chat history ke peer baru
     conn.send({ type: "sync", chatLog })
   })
 
   conn.on("data", data => {
     if(data.type === "chat"){
-      addMessage(data.msg)
-      // Broadcast pesan ke semua peer kecuali pengirim
-      connections.forEach(c => {
-        if(c !== conn && c.open) c.send(data)
-      })
+      chatLog.push(data.msg)
+      render()
     }
     if(data.type === "sync"){
-      data.chatLog.forEach(msg => addMessage(msg))
+      chatLog = data.chatLog
+      render()
     }
-  })
-
-  conn.on("close", () => {
-    // hapus koneksi jika peer disconnect
-    connections = connections.filter(c => c !== conn)
   })
 }
 </script>
