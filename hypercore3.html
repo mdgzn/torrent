@@ -5,15 +5,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<title>P2P Mobile Chat</title>
+<title>Obrolan Seo</title>
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 
 <style>
 
-*{
-box-sizing:border-box;
-}
+*{box-sizing:border-box;}
 
 body{
 margin:0;
@@ -52,8 +50,9 @@ justify-content:center;
 font-weight:bold;
 }
 
-.username{
-font-size:15px;
+.groupname{
+font-size:16px;
+font-weight:600;
 }
 
 .status{
@@ -115,6 +114,13 @@ background:#202c33;
 align-self:flex-start;
 }
 
+.sender{
+font-size:12px;
+font-weight:600;
+color:#25d366;
+margin-bottom:2px;
+}
+
 .time{
 font-size:10px;
 opacity:.6;
@@ -152,8 +158,6 @@ font-size:16px;
 cursor:pointer;
 }
 
-/* IMAGE */
-
 img.chatimg{
 max-width:200px;
 border-radius:6px;
@@ -170,11 +174,11 @@ margin-top:4px;
 
 <div class="header">
 
-<div class="avatar" id="avatar">U</div>
+<div class="avatar">O</div>
 
 <div>
-<div class="username" id="usernameLabel"></div>
-<div class="status" id="status">offline</div>
+<div class="groupname">Obrolan Seo</div>
+<div class="status" id="peerCount">0 peserta</div>
 </div>
 
 </div>
@@ -188,8 +192,6 @@ Connect ke Peer
 <input id="peerId" placeholder="Masukkan peer ID">
 
 <button id="connectBtn">Connect</button>
-
-<div id="peerCount">Peer: 0</div>
 
 </div>
 
@@ -226,9 +228,6 @@ localStorage.username=randomUser()
 
 const username=localStorage.username
 
-document.getElementById("usernameLabel").innerText=username
-document.getElementById("avatar").innerText=username[0]
-
 /* VAR */
 
 let connections=[]
@@ -242,7 +241,6 @@ const peerId=document.getElementById("peerId")
 const connectBtn=document.getElementById("connectBtn")
 const sendBtn=document.getElementById("sendBtn")
 const messageInput=document.getElementById("messageInput")
-const status=document.getElementById("status")
 const fileBtn=document.getElementById("fileBtn")
 const fileInput=document.getElementById("fileInput")
 const peerCount=document.getElementById("peerCount")
@@ -261,16 +259,20 @@ box.className="msg "+(m.user===username?"me":"other")
 
 let html=""
 
+if(m.user!==username){
+html+=`<div class="sender">${m.user}</div>`
+}
+
 if(m.type==="text"){
-html=m.text
+html+=m.text
 }
 
 if(m.type==="image"){
-html=`<img class="chatimg" src="${m.data}">`
+html+=`<img class="chatimg" src="${m.data}">`
 }
 
 if(m.type==="file"){
-html=`<a href="${m.data}" download="${m.name}">📎 ${m.name}</a>`
+html+=`<a href="${m.data}" download="${m.name}">📎 ${m.name}</a>`
 }
 
 const time=new Date(m.time).toLocaleTimeString()
@@ -368,7 +370,6 @@ reader.readAsDataURL(file)
 
 peer.on("open",id=>{
 myId.value=id
-status.innerText="online"
 })
 
 connectBtn.onclick=()=>{
@@ -384,7 +385,7 @@ function setup(conn){
 
 connections.push(conn)
 
-peerCount.innerText="Peer: "+connections.length
+peerCount.innerText=(connections.length+1)+" peserta"
 
 conn.on("open",()=>{
 conn.send({type:"sync",chatLog})
@@ -406,7 +407,7 @@ render()
 
 conn.on("close",()=>{
 connections=connections.filter(c=>c!==conn)
-peerCount.innerText="Peer: "+connections.length
+peerCount.innerText=(connections.length+1)+" peserta"
 })
 
 }
