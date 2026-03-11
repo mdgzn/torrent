@@ -1,105 +1,230 @@
+```html
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Mini Hypercore Demo</title>
+<title>Mini Hypercore P2P Learning Demo</title>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 
 <style>
 body{
-font-family:Arial;
+font-family:system-ui;
+background:#f4f6f9;
+margin:0;
+}
+
+header{
+background:#111827;
+color:white;
 padding:20px;
-background:#f5f5f5;
+text-align:center;
+}
+
+.container{
+max-width:900px;
+margin:auto;
+padding:20px;
 }
 
 .card{
 background:white;
 padding:20px;
+border-radius:10px;
 margin-bottom:20px;
-border-radius:8px;
+box-shadow:0 4px 12px rgba(0,0,0,.06);
 }
 
 button,input{
-padding:8px;
 width:100%;
-margin-top:6px;
+padding:10px;
+margin-top:8px;
+border-radius:6px;
+border:1px solid #ccc;
+}
+
+button{
+background:#2563eb;
+color:white;
+border:none;
+cursor:pointer;
+}
+
+button:hover{
+background:#1d4ed8;
 }
 
 #log{
-white-space:pre-line;
-background:#111;
-color:#0f0;
-padding:10px;
+background:#0f172a;
+color:#22c55e;
+padding:12px;
 height:200px;
 overflow:auto;
+font-family:monospace;
+}
+
+.peer{
+font-size:14px;
+color:#666;
 }
 </style>
-
 </head>
+
 <body>
 
-<h2>Mini Hypercore Learning Demo</h2>
+<header>
+<h1>Mini Hypercore P2P Demo</h1>
+<p>Append-only log dengan replication antar peer</p>
+</header>
+
+<div class="container">
 
 <div class="card">
+<h2>🔑 Feed Identity</h2>
 
-<h3>Seeder (Append Data)</h3>
+<p class="peer">Public Key (Feed ID):</p>
+<input id="myId" readonly>
 
-<input id="dataInput" placeholder="Tulis data baru">
+<p class="peer">Connect ke Peer:</p>
+<input id="peerId" placeholder="Masukkan public key peer">
 
-<button id="appendBtn">Append Data</button>
+<button id="connectBtn">Connect Peer</button>
 
 </div>
 
 <div class="card">
 
-<h3>Shared Log</h3>
+<h2>➕ Append Data</h2>
+
+<input id="dataInput" placeholder="Tulis data baru">
+
+<button id="appendBtn">Append ke Feed</button>
+
+</div>
+
+<div class="card">
+
+<h2>📜 Feed Log (Append Only)</h2>
 
 <div id="log"></div>
 
 </div>
 
+</div>
+
 <script>
 
-let logData=[]
+let feed = []
+let connections = []
+
+const peer = new Peer()
+
+const myId = document.getElementById("myId")
+const peerId = document.getElementById("peerId")
+const connectBtn = document.getElementById("connectBtn")
+const appendBtn = document.getElementById("appendBtn")
+const dataInput = document.getElementById("dataInput")
+const logBox = document.getElementById("log")
+
+/* ===== Render Feed ===== */
 
 function render(){
 
-log.innerText=logData
-.map((d,i)=>`#${i}  ${d}`)
+logBox.innerText = feed
+.map((v,i)=>`#${i}  ${v}`)
 .join("\n")
 
 }
 
-appendBtn.onclick=()=>{
+/* ===== Append Entry ===== */
 
-const data=dataInput.value.trim()
+appendBtn.onclick = ()=>{
+
+const data = dataInput.value.trim()
 
 if(!data) return
 
-logData.push(data)
+feed.push(data)
 
 render()
 
-broadcast(data)
+broadcast({
+type:"append",
+data
+})
 
 dataInput.value=""
 
 }
 
-/* ==== Simulasi broadcast ==== */
+/* ===== Broadcast ===== */
 
-const channel=new BroadcastChannel("hypercore-demo")
+function broadcast(msg){
 
-function broadcast(data){
-
-channel.postMessage(data)
+connections.forEach(conn=>{
+conn.send(msg)
+})
 
 }
 
-channel.onmessage=(e)=>{
+/* ===== Peer Ready ===== */
 
-logData.push(e.data)
+peer.on("open", id=>{
+myId.value = id
+})
+
+/* ===== Connect Peer ===== */
+
+connectBtn.onclick = ()=>{
+
+const conn = peer.connect(peerId.value)
+
+setupConnection(conn)
+
+}
+
+/* ===== Incoming Peer ===== */
+
+peer.on("connection", conn=>{
+setupConnection(conn)
+})
+
+/* ===== Setup Connection ===== */
+
+function setupConnection(conn){
+
+connections.push(conn)
+
+conn.on("open", ()=>{
+
+/* sync full feed */
+
+conn.send({
+type:"sync",
+feed
+})
+
+})
+
+conn.on("data", msg=>{
+
+if(msg.type==="append"){
+
+feed.push(msg.data)
 
 render()
+
+}
+
+if(msg.type==="sync"){
+
+feed = msg.feed
+
+render()
+
+}
+
+})
 
 }
 
@@ -107,3 +232,4 @@ render()
 
 </body>
 </html>
+```
