@@ -2,134 +2,213 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>WebTorrent Hybrid Peer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mini WebTorrent Hybrid Peer</title>
 
 <script src="https://cdn.jsdelivr.net/npm/webtorrent@0.115.0/webtorrent.min.js"></script>
 
 <style>
 body{
-font-family:Arial;
+font-family:system-ui,Arial;
 text-align:center;
 padding:20px;
 }
+
 button,input{
+width:100%;
+max-width:420px;
 padding:8px;
-margin:5px;
-width:90%;
-max-width:400px;
+margin:6px auto;
+display:block;
+}
+
+video,audio{
+width:100%;
+max-width:420px;
+margin-top:10px;
+}
+
+.file{
+border-top:1px solid #ddd;
+margin-top:10px;
+padding-top:10px;
 }
 </style>
 </head>
 <body>
 
-<h3>WebTorrent Seeder</h3>
+<h3>Mini WebTorrent Hybrid Peer</h3>
 
+<!-- UPLOAD ASLI -->
 <button id="uploadBtn">Upload File Asli</button>
 <input type="file" id="fileInput" multiple style="display:none">
 
+<!-- DUMMY -->
 <button id="dummyBtn">Gunakan Dummy File</button>
 
-<p id="info"></p>
+<p id="seedInfo"></p>
 
 <hr>
 
-<input id="magnetInput" placeholder="Magnet Link">
-<button id="joinBtn">Join</button>
+<!-- JOIN SWARM -->
+<input type="text" id="magnetInput" placeholder="Magnet / Info-hash WebTorrent">
+<button id="joinBtn">Join Swarm</button>
 
 <div id="viewer"></div>
+<div id="downloads"></div>
 
 <script>
 
 const client = new WebTorrent()
-const $ = id => document.getElementById(id)
 
-/* =======================
+const uploadBtn = document.getElementById("uploadBtn")
+const fileInput = document.getElementById("fileInput")
+const dummyBtn = document.getElementById("dummyBtn")
+const seedInfo = document.getElementById("seedInfo")
+const magnetInput = document.getElementById("magnetInput")
+const joinBtn = document.getElementById("joinBtn")
+const viewer = document.getElementById("viewer")
+const downloads = document.getElementById("downloads")
+
+let currentTorrent = null
+
+
+/* =====================
 UPLOAD FILE ASLI
-======================= */
+===================== */
 
-$('uploadBtn').onclick = ()=>{
-$('fileInput').click()
-}
+uploadBtn.onclick = ()=> fileInput.click()
 
-$('fileInput').onchange = e => {
+fileInput.onchange = e => {
 
 const files = [...e.target.files]
 
+if(!files.length) return
+
+if(currentTorrent) currentTorrent.destroy()
+
 client.seed(files, torrent=>{
 
-$('info').textContent = "Seeding file asli"
-$('magnetInput').value = torrent.magnetURI
+currentTorrent = torrent
+
+seedInfo.textContent = "Seeding "+files.length+" file"
+magnetInput.value = torrent.magnetURI
 
 })
 
 }
 
 
-/* =======================
-DUMMY FILE JSON
-======================= */
+/* =====================
+DUMMY FILE VIRTUAL
+===================== */
 
-$('dummyBtn').onclick = async ()=>{
+dummyBtn.onclick = ()=>{
 
-const res = await fetch("dummy.json")
-const data = await res.json()
+if(currentTorrent) currentTorrent.destroy()
 
-const files = data.files.map(f => {
+// membuat dummy file virtual
+const random = Math.random().toString(36).slice(2)
 
-return new File(
-[f.content],
-f.name,
-{type:f.type}
+const files = [
+
+new File(
+["Ini adalah dummy file pertama"],
+"dummy1.txt",
+{type:"text/plain"}
+),
+
+new File(
+["Dummy file kedua dengan ID "+random],
+"dummy2.txt",
+{type:"text/plain"}
+),
+
+new File(
+["0".repeat(500000)],
+"dummy_video.mp4",
+{type:"video/mp4"}
 )
 
-})
+]
 
 client.seed(files, torrent=>{
 
-$('info').textContent = "Seeding dummy file"
-$('magnetInput').value = torrent.magnetURI
+currentTorrent = torrent
+
+seedInfo.textContent = "Seeding dummy files"
+magnetInput.value = torrent.magnetURI
 
 })
 
 }
 
 
-/* =======================
+/* =====================
 JOIN TORRENT
-======================= */
+===================== */
 
-$('joinBtn').onclick = ()=>{
+joinBtn.onclick = ()=>{
 
-const magnet = $('magnetInput').value.trim()
+const magnet = magnetInput.value.trim()
+
+if(!magnet) return
 
 client.add(magnet, torrent=>{
 
+downloads.innerHTML=""
+
 torrent.files.forEach(file=>{
 
+const box = document.createElement("div")
+box.className="file"
+
+if(file.name.match(/\.(mp4|webm|mp3)$/i)){
+
+const media = document.createElement(
+file.name.match(/mp3$/)?"audio":"video"
+)
+
+media.controls = true
+
+file.appendTo(media)
+
+box.appendChild(media)
+
+}
+
 const btn = document.createElement("button")
+btn.textContent="Download "+file.name
 
-btn.textContent = "Download "+file.name
+btn.onclick=()=>{
 
-btn.onclick = ()=>{
+btn.textContent="Menyiapkan..."
 
 file.getBlob((err,blob)=>{
 
 const a=document.createElement("a")
+
 a.href=URL.createObjectURL(blob)
 a.download=file.name
 a.click()
 
-})
-
-}
-
-viewer.appendChild(btn)
-
-})
+btn.textContent="Download ulang"
 
 })
 
 }
+
+box.appendChild(btn)
+
+downloads.appendChild(box)
+
+})
+
+})
+
+}
+
+client.on("error",console.error)
 
 </script>
 
