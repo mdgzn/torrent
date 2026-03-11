@@ -1,0 +1,249 @@
+```html
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>P2P Auto Room Chat</title>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+
+<style>
+
+body{
+font-family:system-ui;
+background:#f3f4f6;
+margin:0;
+}
+
+header{
+background:#111827;
+color:white;
+padding:20px;
+text-align:center;
+}
+
+.container{
+max-width:900px;
+margin:auto;
+padding:20px;
+}
+
+.card{
+background:white;
+padding:20px;
+border-radius:10px;
+margin-bottom:20px;
+box-shadow:0 5px 12px rgba(0,0,0,.05);
+}
+
+input,button{
+width:100%;
+padding:10px;
+margin-top:8px;
+border-radius:6px;
+border:1px solid #ccc;
+}
+
+button{
+background:#2563eb;
+color:white;
+border:none;
+cursor:pointer;
+}
+
+button:hover{
+background:#1e40af;
+}
+
+#chat{
+background:#0f172a;
+color:white;
+padding:10px;
+height:300px;
+overflow:auto;
+font-family:monospace;
+}
+
+.status{
+font-size:14px;
+color:#666;
+}
+
+</style>
+</head>
+
+<body>
+
+<header>
+<h1>P2P Group Chat</h1>
+<p>Auto Join Room (tanpa kirim peer ID)</p>
+</header>
+
+<div class="container">
+
+<div class="card">
+
+<h3>Join Room</h3>
+
+<input id="username" placeholder="Nama kamu">
+
+<input id="room" placeholder="Nama room">
+
+<button id="joinBtn">Join Chat</button>
+
+<p class="status" id="status"></p>
+
+</div>
+
+<div class="card">
+
+<h3>Chat</h3>
+
+<div id="chat"></div>
+
+<input id="msg" placeholder="Tulis pesan...">
+
+<button id="sendBtn">Kirim</button>
+
+</div>
+
+</div>
+
+<script>
+
+let peer
+let connections=[]
+let chatLog=[]
+
+const chat=document.getElementById("chat")
+const username=document.getElementById("username")
+const roomInput=document.getElementById("room")
+const joinBtn=document.getElementById("joinBtn")
+const sendBtn=document.getElementById("sendBtn")
+const msgInput=document.getElementById("msg")
+const status=document.getElementById("status")
+
+function render(){
+
+chat.innerText=chatLog
+.map(m=>`${m.user}: ${m.text}`)
+.join("\n")
+
+chat.scrollTop=chat.scrollHeight
+
+}
+
+function broadcast(data){
+
+connections.forEach(c=>c.send(data))
+
+}
+
+joinBtn.onclick=()=>{
+
+const room=roomInput.value.trim()
+
+if(!room) return
+
+const myId=room+"-"+Math.random().toString(36).slice(2,8)
+
+peer=new Peer(myId)
+
+status.innerText="Joining room..."
+
+peer.on("open",id=>{
+
+status.innerText="Connected as "+id
+
+/* connect to possible peers */
+
+for(let i=0;i<20;i++){
+
+const guess=room+"-"+i
+
+if(guess!==id){
+
+try{
+
+const conn=peer.connect(guess)
+
+setup(conn)
+
+}catch{}
+
+}
+
+}
+
+})
+
+peer.on("connection",conn=>{
+setup(conn)
+})
+
+}
+
+function setup(conn){
+
+connections.push(conn)
+
+conn.on("open",()=>{
+
+conn.send({
+type:"sync",
+log:chatLog
+})
+
+})
+
+conn.on("data",data=>{
+
+if(data.type==="chat"){
+
+chatLog.push(data.msg)
+
+render()
+
+}
+
+if(data.type==="sync"){
+
+chatLog=data.log
+
+render()
+
+}
+
+})
+
+}
+
+sendBtn.onclick=()=>{
+
+const text=msgInput.value.trim()
+
+if(!text) return
+
+const message={
+user:username.value||"anon",
+text
+}
+
+chatLog.push(message)
+
+render()
+
+broadcast({
+type:"chat",
+msg:message
+})
+
+msgInput.value=""
+
+}
+
+</script>
+
+</body>
+</html>
+```
