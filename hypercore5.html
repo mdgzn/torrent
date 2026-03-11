@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>P2P Chat Mesh</title>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+
+<style>
+
+*{box-sizing:border-box}
+
+body{
+margin:0;
+font-family:system-ui;
+background:#111b21;
+}
+
+.app{
+display:flex;
+flex-direction:column;
+height:100dvh;
+max-width:520px;
+margin:auto;
+background:#0b141a;
+color:white;
+}
+
+/* HEADER */
+
+.header{
+background:#202c33;
+padding:10px;
+display:flex;
+align-items:center;
+gap:10px;
+}
+
+.avatar{
+width:36px;
+height:36px;
+border-radius:50%;
+background:#25d366;
+display:flex;
+align-items:center;
+justify-content:center;
+font-weight:bold;
+}
+
+.groupname{
+font-size:16px;
+font-weight:600;
+}
+
+.status{
+font-size:12px;
+opacity:.7;
+}
+
+/* CHAT */
+
+.chat{
+flex:1;
+overflow-y:auto;
+padding:10px;
+display:flex;
+flex-direction:column;
+gap:6px;
+}
+
+.msg{
+max-width:80%;
+padding:8px 10px;
+border-radius:8px;
+font-size:14px;
+word-break:break-word;
+}
+
+.me{
+background:#005c4b;
+align-self:flex-end;
+}
+
+.other{
+background:#202c33;
+align-self:flex-start;
+}
+
+.sender{
+font-size:12px;
+font-weight:600;
+color:#25d366;
+margin-bottom:2px;
+}
+
+.time{
+font-size:10px;
+opacity:.6;
+text-align:right;
+margin-top:2px;
+}
+
+.chat img{
+max-width:200px;
+border-radius:6px;
+margin-top:5px;
+}
+
+/* FOOTER */
+
+.footer{
+display:flex;
+gap:6px;
+padding:8px;
+background:#202c33;
+}
+
+.footer input{
+flex:1;
+border:none;
+border-radius:20px;
+padding:10px;
+font-size:16px;
+}
+
+.footer button{
+border:none;
+width:42px;
+height:42px;
+border-radius:50%;
+background:#25d366;
+color:white;
+font-size:16px;
+cursor:pointer;
+}
+
+.members{
+font-size:11px;
+padding:4px 10px;
+background:#111b21;
+color:#bbb;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="app">
+
+<div class="header">
+
+<div class="avatar">P</div>
+
+<div>
+<div class="groupname">Obrolan Seo</div>
+<div class="status" id="peerCount">1 peserta</div>
+</div>
+
+</div>
+
+<div class="members" id="memberList"></div>
+
+<div class="chat" id="chat"></div>
+
+<div class="footer">
+
+<input id="messageInput" placeholder="Ketik pesan">
+
+<input type="file" id="fileInput" style="display:none">
+
+<button id="fileBtn">📎</button>
+
+<button id="sendBtn">➤</button>
+
+</div>
+
+</div>
+
+<script>
+
+/* USERNAME */
+
+const names=["Anto","Budi","Sari","Rina","Dodi","Joko","Dina","Rudi","Sinta","Arif"]
+
+function randomUser(){
+return names[Math.floor(Math.random()*names.length)]
++Math.floor(1000+Math.random()*9000)
+}
+
+if(!localStorage.username){
+localStorage.username=randomUser()
+}
+
+const username=localStorage.username
+
+/* VAR */
+
+let connections=[]
+let chatLog=[]
+let seenMessages=new Set()
+let knownPeers=new Set()
+
+const peer=new Peer()
+
+const chat=document.getElementById("chat")
+const peerCount=document.getElementById("peerCount")
+const memberList=document.getElementById("memberList")
+
+const messageInput=document.getElementById("messageInput")
+const sendBtn=document.getElementById("sendBtn")
+
+const fileBtn=document.getElementById("fileBtn")
+const fileInput=document.getElementById("fileInput")
+
+/* UI */
+
+function updateMembers(){
+
+const peers=[...knownPeers]
+
+peerCount.innerText=(peers.length)+" peserta"
+
+memberList.innerText="online: "+peers.join(", ")
+
+}
+
+/* RENDER */
+
+function render(){
+
+chat.innerHTML=""
+
+chatLog.sort((a,b)=>a.time-b.time)
+
+chatLog.forEach(m=>{
+
+const box=document.createElement("div")
+
+box.className="msg "+(m.user===username?"me":"other")
+
+let html=""
+
+if(m.user!==username){
+html+=`<div class="sender">${m.user}</div>`
+}
+
+if(m.type==="text"){
+html+=m.text
+}
+
+if(m.type==="image"){
+html+=`<img src="${m.data}">`
+}
+
+if(m.type==="file"){
+html+=`<a href="${m.data}" download="${m.name}">📎 ${m.name}</a>`
+}
+
+const time=new Date(m.time).toLocaleTimeString()
+
+box.innerHTML=html+`<div class="time">${time}</div>`
+
+chat.appendChild(box)
+
+})
+
+chat.scrollTop=chat.scrollHeight
+
+}
+
+/* BROADCAST */
+
+function broadcast(data, sender=null){
+
+connections.forEach(conn=>{
+if(conn!==sender){
+conn.send(data)
+}
+})
+
+}
+
+/* SEND TEXT */
+
+function send(){
+
+const text=messageInput.value.trim()
+if(!text) return
+
+const msg={
+id:crypto.randomUUID(),
+type:"text",
+user:username,
+text,
+time:Date.now()
+}
+
+seenMessages.add(msg.id)
+
+chatLog.push(msg)
+
+render()
+
+broadcast({
+type:"chat",
+msg
+})
+
+messageInput.value=""
+
+}
+
+/* SEND FILE */
+
+fileBtn.onclick=()=>fileInput.click()
+
+fileInput.onchange=()=>{
+
+const file=fileInput.files[0]
+
+const reader=new FileReader()
+
+reader.onload=()=>{
+
+let msg
+
+if(file.type.startsWith("image")){
+msg={
+id:crypto.randomUUID(),
+type:"image",
+user:username,
+data:reader.result,
+time:Date.now()
+}
+}else{
+msg={
+id:crypto.randomUUID(),
+type:"file",
+user:username,
+data:reader.result,
+name:file.name,
+time:Date.now()
+}
+}
+
+seenMessages.add(msg.id)
+
+chatLog.push(msg)
+
+render()
+
+broadcast({
+type:"chat",
+msg
+})
+
+}
+
+reader.readAsDataURL(file)
+
+}
+
+/* PEER */
+
+peer.on("open",id=>{
+
+knownPeers.add(id)
+
+updateMembers()
+
+})
+
+/* CONNECT */
+
+function connectToPeer(pid){
+
+if(pid===peer.id) return
+
+if([...connections].find(c=>c.peer===pid)) return
+
+const conn=peer.connect(pid)
+
+setup(conn)
+
+}
+
+/* RECEIVE CONNECTION */
+
+peer.on("connection",conn=>{
+setup(conn)
+})
+
+/* SETUP CONNECTION */
+
+function setup(conn){
+
+connections.push(conn)
+
+knownPeers.add(conn.peer)
+
+updateMembers()
+
+conn.on("open",()=>{
+
+conn.send({
+type:"sync",
+chatLog
+})
+
+conn.send({
+type:"peers",
+peers:[...knownPeers]
+})
+
+})
+
+conn.on("data",data=>{
+
+/* CHAT */
+
+if(data.type==="chat"){
+
+const msg=data.msg
+
+if(seenMessages.has(msg.id)) return
+
+seenMessages.add(msg.id)
+
+chatLog.push(msg)
+
+render()
+
+broadcast(data,conn)
+
+}
+
+/* SYNC */
+
+if(data.type==="sync"){
+
+data.chatLog.forEach(m=>{
+
+if(!seenMessages.has(m.id)){
+seenMessages.add(m.id)
+chatLog.push(m)
+}
+
+})
+
+render()
+
+}
+
+/* PEER DISCOVERY */
+
+if(data.type==="peers"){
+
+data.peers.forEach(pid=>{
+
+if(!knownPeers.has(pid)){
+
+knownPeers.add(pid)
+
+connectToPeer(pid)
+
+}
+
+})
+
+updateMembers()
+
+}
+
+})
+
+conn.on("close",()=>{
+
+connections=connections.filter(c=>c!==conn)
+
+updateMembers()
+
+})
+
+}
+
+/* PERIODIC PEER SHARE */
+
+setInterval(()=>{
+
+broadcast({
+type:"peers",
+peers:[...knownPeers]
+})
+
+},5000)
+
+/* EVENTS */
+
+sendBtn.onclick=send
+
+messageInput.addEventListener("keypress",e=>{
+if(e.key==="Enter") send()
+})
+
+</script>
+
+</body>
+</html>
