@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ganti Username Local</title>
+<style>
+body { font-family: system-ui; padding:20px; background:#f2f4f8; }
+.container { max-width:400px; margin:auto; background:#fff; padding:20px; border-radius:12px; box-shadow:0 3px 10px rgba(0,0,0,0.1);}
+input { width:100%; padding:10px; margin-top:8px; border-radius:8px; border:1px solid #d1d5db; box-sizing:border-box; }
+button { margin-top:10px; width:100%; padding:10px; border:none; border-radius:8px; font-weight:600; cursor:pointer; background:#2563eb; color:white; }
+button:hover { background:#1e40af; }
+#notif { margin-top:10px; padding:10px; border-radius:8px; font-weight:600; display:none; color:white;}
+</style>
+</head>
+<body>
+<div class="container">
+  <h2>Ganti Username Local</h2>
+  <p>Username saat ini: <span id="current-username"></span></p>
+  <label>Masukkan username baru:</label>
+  <input type="text" id="new-username" placeholder="Misal: RikoPratama8581">
+  <button onclick="gantiUsername()">Simpan Username</button>
+  <button onclick="resetUsername()" style="background:#ef4444;margin-top:6px;">Reset ke Default</button>
+  <div id="notif"></div>
+</div>
+
+<script>
+function tampilUsername(){
+  let uname = localStorage.getItem("visitorUsername");
+  if(!uname){
+    uname = "DefaultUser123";
+    localStorage.setItem("visitorUsername", uname);
+  }
+  document.getElementById("current-username").innerText = uname;
+}
+
+function gantiUsername(){
+  const input = document.getElementById("new-username").value.trim();
+  if(!input){ showNotif("Username tidak boleh kosong","#ef4444"); return; }
+  localStorage.setItem("visitorUsername", input);
+  tampilUsername();
+  showNotif("Username berhasil diubah!","#10b981");
+}
+
+function resetUsername(){
+  localStorage.removeItem("visitorUsername");
+  tampilUsername();
+  showNotif("Username di-reset ke default","#f59e0b");
+}
+
+function showNotif(text,color){
+  const n = document.getElementById("notif");
+  n.innerText = text;
+  n.style.background = color;
+  n.style.display = "block";
+  setTimeout(()=>{ n.style.display="none"; },2500);
+}
+
+// initial
+tampilUsername();
+</script>
+</body>
+</html>
