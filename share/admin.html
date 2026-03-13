@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Share Link Affiliate - Admin Mode</title>
+<style>
+body { font-family: system-ui; background: #f2f4f8; margin:0; padding:12px;}
+.container { max-width: 700px; margin:auto; }
+h1 { text-align: center; margin-bottom: 12px; color: #1f2937; }
+.tabs { display:flex; justify-content:space-around; margin-bottom:15px; flex-wrap:wrap;}
+.tab-btn { flex:1; text-align:center; padding:10px 0; cursor:pointer; border-radius:8px; background:#e5e7eb; font-weight:600; margin:3px;}
+.tab-btn.active { background:#2563eb; color:white; }
+.tab-content { display:none; }
+.tab-content.active { display:block; }
+.form-card, .feed-card { background:#fff; border-radius:12px; padding:20px; box-shadow:0 3px 10px rgba(0,0,0,0.08); margin-bottom:15px; }
+label { font-size:14px; font-weight:600; margin-top:10px; display:block; }
+input, textarea { width:100%; padding:12px; margin-top:6px; margin-bottom:12px; border-radius:8px; border:1px solid #d1d5db; font-size:14px; box-sizing:border-box; }
+textarea { resize:none; height:80px; }
+button { background:#2563eb; color:white; border:none; padding:12px; width:100%; font-size:15px; font-weight:600; border-radius:8px; cursor:pointer; margin-top:6px; }
+button:hover { background:#1e40af; }
+.feed-title { font-size:16px; font-weight:700; margin-bottom:6px; color:#111827; }
+.feed-desc { font-size:14px; color:#4b5563; margin-bottom:8px; }
+.feed-author::before { content: "👤 "; }
+.feed-author { font-weight: 600; color: #2563eb; padding: 2px 8px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+.feed-author:hover { background: #2563eb; color: white; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+.open-btn, .comment-btn, .delete-btn, .edit-btn { padding:10px 14px; border:none; border-radius:8px; cursor:pointer; font-weight:600; width:48%; margin-right:2%; }
+.open-btn { background:#10b981; color:white; }
+.open-btn:hover { background:#059669; }
+.comment-btn { background:#2563eb; color:white; }
+.comment-btn:hover { background:#1e40af; }
+.delete-btn { background:#ef4444; color:white; }
+.delete-btn:hover { background:#b91c1c; }
+.edit-btn { background:#f59e0b; color:white; }
+.edit-btn:hover { background:#b45309; }
+.comment-card { background:#f3f4f6; border-radius:8px; padding:10px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;}
+.comment-text { flex:1; margin-right:6px;}
+.pagination { text-align:center; margin-top:18px; }
+.page-btn { display:inline-block; padding:6px 12px; margin:3px; background:#e5e7eb; border-radius:6px; cursor:pointer; font-size:14px; }
+.page-btn.active { background:#2563eb; color:white; }
+@media (max-width:480px) {
+  .tabs { flex-direction:column; }
+  .tab-btn { margin:4px 0; }
+  .open-btn, .comment-btn, .edit-btn, .delete-btn { width:100%; margin-right:0; margin-bottom:6px; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>Share Link Affiliate - Admin Mode</h1>
+<div class="tabs">
+  <div class="tab-btn active" onclick="openTab('home')">Home</div>
+  <div class="tab-btn" onclick="openTab('posting')">Posting</div>
+  <div class="tab-btn" onclick="openTab('mydata')">Data Saya</div>
+  <div class="tab-btn" onclick="openTab('admin')">Admin</div>
+  <div class="tab-btn" onclick="openTab('tentang')">Tentang</div>
+</div>
+
+<div id="home" class="tab-content active"><div id="home-feed"></div><div class="pagination" id="home-pagination"></div></div>
+<div id="posting" class="tab-content">
+  <div class="form-card">
+    <label>Judul *</label><input id="judul" placeholder="Masukkan judul">
+    <label>Keterangan (max 160 karakter)</label><textarea id="ket" maxlength="160" placeholder="Masukkan deskripsi singkat"></textarea>
+    <label>Link *</label><input id="link" placeholder="Masukkan link Shopee/TikTok/YouTube">
+    <div id="author-display" style="margin-bottom:8px; font-weight:600; color:#374151;"></div>
+    <button onclick="tambahPost()">Posting</button>
+  </div>
+</div>
+<div id="mydata" class="tab-content"><div id="my-feed"></div></div>
+<div id="admin" class="tab-content"><div id="admin-feed"></div></div>
+<div id="tentang" class="tab-content"><div class="form-card"><h2>Tentang Web Ini</h2><p>Web ini dibuat sepenuhnya menggunakan <strong>HTML, CSS, dan JavaScript</strong>. Semua postingan & komentar tersimpan di <strong>GAS</strong>, tidak di localStorage.</p></div></div>
+
+<script>
+const GAS_URL = "https://script.google.com/macros/s/AKfycbwzsIy_r8hsXjIH7nt2VgxETeM86kipahJCMPMLLAzgenyjWc-SrkxTRwI-uym1-Qws/exec";
+
+// TAB
+function openTab(tabName){
+  document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el=>el.classList.remove('active'));
+  document.querySelector(`.tab-btn[onclick="openTab('${tabName}')"]`)?.classList.add('active');
+  document.getElementById(tabName).classList.add('active');
+}
+
+// USER
+let username = localStorage.getItem("visitorUsername") || "admin123"; // default admin for demo
+document.getElementById("author-display").innerText = "Author: " + username;
+
+// DATA
+let posts = [];
+let currentPage = 1;
+let perPage = 10;
+
+// FETCH
+async function fetchPosts(){
+  try{
+    const resp = await fetch(GAS_URL, {method:"POST", body:JSON.stringify({read:true})});
+    const data = await resp.json();
+    posts = data || [];
+    posts.forEach(p=>{ if(!p.comments)p.comments=[]; });
+    renderHomeFeed();
+    renderMyFeed();
+    renderAdminFeed();
+  } catch(err){ console.error(err); alert("Gagal ambil data dari server."); }
+}
+
+// TAMBAH POST
+async function tambahPost(){
+  const judul=document.getElementById("judul").value.trim();
+  const ket=document.getElementById("ket").value.trim();
+  const link=document.getElementById("link").value.trim();
+  if(!judul||!link){ alert("Judul dan link wajib diisi!"); return; }
+  const entry={judul, ket, link, author: username, comments: []};
+  try{
+    const resp=await fetch(GAS_URL,{method:"POST", body:JSON.stringify(entry)});
+    const res=await resp.json();
+    if(res.status==="ok"){ document.getElementById("judul").value=""; document.getElementById("ket").value=""; document.getElementById("link").value=""; fetchPosts(); alert("Posting berhasil!"); }
+    else alert(res.message);
+  } catch(err){ console.error(err); alert("Gagal menyimpan postingan."); }
+}
+
+// HAPUS POST ADMIN
+async function hapusPost(postIndex){
+  if(confirm("Apakah yakin ingin menghapus postingan ini?")){
+    try{
+      const resp = await fetch(GAS_URL,{method:"POST", body:JSON.stringify({deleteIndex:postIndex})});
+      const res = await resp.json();
+      if(res.status==="ok") fetchPosts();
+      else alert(res.message);
+    } catch(err){ console.error(err); alert("Gagal menghapus postingan."); }
+  }
+}
+
+// EDIT POST ADMIN
+function openEditForm(postIndex){
+  const post = posts[postIndex];
+  const modal = document.createElement("div");
+  modal.style.cssText="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;justify-content:center;align-items:center;z-index:9999;";
+  modal.innerHTML=`
+    <div class="form-card" style="width:90%; max-width:500px;">
+      <h2>Edit Post</h2>
+      <label>Judul *</label><input id="edit-judul" value="${post.judul}">
+      <label>Keterangan</label><textarea id="edit-ket">${post.ket}</textarea>
+      <label>Link *</label><input id="edit-link" value="${post.link}">
+      <button id="save-edit">Simpan</button>
+      <button id="cancel-edit" style="background:#ef4444;">Batal</button>
+    </div>`;
+  document.body.appendChild(modal);
+  document.getElementById("save-edit").onclick=async()=>{
+    const newJ=document.getElementById("edit-judul").value.trim();
+    const newK=document.getElementById("edit-ket").value.trim();
+    const newL=document.getElementById("edit-link").value.trim();
+    if(!newJ||!newL){ alert("Judul dan link wajib diisi!"); return; }
+    try{
+      const resp = await fetch(GAS_URL,{method:"POST", body:JSON.stringify({editIndex:postIndex, judul:newJ, ket:newK, link:newL})});
+      const res=await resp.json();
+      if(res.status==="ok"){ modal.remove(); fetchPosts(); alert("Berhasil diperbarui!"); }
+      else alert(res.message);
+    } catch(err){ console.error(err); alert("Gagal menyimpan."); }
+  };
+  document.getElementById("cancel-edit").onclick=()=>modal.remove();
+}
+
+// RENDER HOME
+function renderHomeFeed(){
+  const feedContainer = document.getElementById("home-feed");
+  const start=(currentPage-1)*perPage;
+  const slice=posts.slice(start,start+perPage);
+  let html="";
+  slice.forEach((p, idx)=>{
+    const globalIndex=posts.indexOf(p);
+    html+=`
+      <div class="feed-card" id="post-${globalIndex}">
+        <div class="feed-author">${p.author}</div>
+        <div class="feed-title">${p.judul}</div>
+        ${p.ket? `<div class="feed-desc">${p.ket}</div>` : ""}
+        <div style="display:flex;gap:4%;">
+          <button class="open-btn" onclick="window.open('${p.link}','_blank')">Buka Link</button>
+          <button class="comment-btn" onclick="openComments(${globalIndex})">Komentar (${p.comments.length})</button>
+        </div>
+      </div>`;
+  });
+  feedContainer.innerHTML=html;
+}
+
+// RENDER MY FEED
+function renderMyFeed(){
+  const myFeed=document.getElementById("my-feed");
+  const myPosts=posts.filter(p=>p.author===username);
+  let html="";
+  myPosts.forEach(p=>{
+    const idx=posts.indexOf(p);
+    html+=`
+      <div class="feed-card" id="mypost-${idx}">
+        <div class="feed-author">${p.author}</div>
+        <div class="feed-title">${p.judul}</div>
+        ${p.ket? `<div class="feed-desc">${p.ket}</div>` : ""}
+        <button class="edit-btn" onclick="openEditForm(${idx})">Edit</button>
+        <button class="delete-btn" onclick="hapusPost(${idx})">Hapus</button>
+      </div>`;
+  });
+  myFeed.innerHTML=html;
+}
+
+// RENDER ADMIN FEED
+function renderAdminFeed(){
+  if(username!=="admin123") return; // hanya admin
+  const adminFeed=document.getElementById("admin-feed");
+  let html="";
+  posts.forEach((p,idx)=>{
+    html+=`
+      <div class="feed-card" id="adminpost-${idx}">
+        <div class="feed-author">${p.author}</div>
+        <div class="feed-title">${p.judul}</div>
+        ${p.ket? `<div class="feed-desc">${p.ket}</div>`:""}
+        <div style="display:flex; gap:4%;">
+          <button class="edit-btn" onclick="openEditForm(${idx})">Edit</button>
+          <button class="delete-btn" onclick="hapusPost(${idx})">Hapus</button>
+        </div>
+        <div>
+          <h4>Komentar:</h4>
+          ${p.comments.map((c,ci)=>`<div class="comment-card"><div class="comment-text"><strong>${c.author}:</strong> ${c.text}</div><button class="delete-btn" onclick="hapusKomentar(${idx},${ci})">Hapus</button></div>`).join("")}
+        </div>
+      </div>`;
+  });
+  adminFeed.innerHTML=html;
+}
+
+// HAPUS KOMENTAR
+async function hapusKomentar(postIndex, commentIndex){
+  if(confirm("Hapus komentar ini?")){
+    posts[postIndex].comments.splice(commentIndex,1);
+    try{
+      const resp=await fetch(GAS_URL,{method:"POST", body:JSON.stringify({editIndex:postIndex, comments:posts[postIndex].comments})});
+      const res=await resp.json();
+      if(res.status==="ok") fetchPosts();
+      else alert(res.message);
+    } catch(err){ console.error(err); alert("Gagal menghapus komentar."); }
+  }
+}
+
+// KOMENTAR
+function openComments(postIndex){
+  alert("Buka tab komentar manual atau integrasi lanjutan");
+}
+
+// INITIAL
+fetchPosts();
+</script>
+</body>
+</html>
