@@ -396,26 +396,83 @@ async function hapusPost(postIndex){
 }
 
 // PROFIL AUTHOR
+// PROFIL AUTHOR FINAL
 function showAuthorProfile(authorName){
   openTab('profil');
   const profilFeed = document.getElementById('profil-feed');
+
+  // Ambil semua postingan dan komentar author
   const userPosts = posts.filter(p => p.author === authorName);
   let userComments = [];
-  posts.forEach(p => { p.comments.forEach(c => { if(c.author === authorName) userComments.push({...c}); }); });
-  let html = `<div class="form-card"><h2>Profil Author: ${authorName}</h2>
-    <p>Menampilkan semua postingan dan komentar yang diterbitkan.</p>
-    <button onclick="openTab('home'); renderHomeFeed();" style="background:#2563eb;color:white;padding:8px;border:none;border-radius:6px;cursor:pointer;font-weight:600;margin-top:6px;">Kembali ke Home</button></div>`;
-  if(userPosts.length>0){ html+=`<h3>Postingan:</h3>`; userPosts.forEach(p=>{ const idx=posts.indexOf(p); html+=`<div class="feed-card"><div class="feed-author">${p.author}</div><div class="feed-title">${p.judul}</div>${p.ket? `<div class="feed-desc">${p.ket}</div>`:""}<button class="open-btn" onclick="scrollToPost(${idx})">Buka Post</button></div>`; }); }
-  if(userComments.length>0){ html+=`<h3>Komentar:</h3>`; userComments.forEach(c=>{ html+=`<div class="feed-card"><div class="feed-author">${authorName}</div><div class="feed-desc"><strong>Komentar di "${c.postTitle}":</strong> ${c.text}</div><button class="open-btn" onclick="scrollToPost(${c.postIndex})">Buka Post</button></div>`; }); }
-  profilFeed.innerHTML=html;
+  posts.forEach(p => {
+    p.comments.forEach(c => {
+      if(c.author === authorName){
+        userComments.push({...c, postTitle: p.judul, postIndex: posts.indexOf(p)});
+      }
+    });
+  });
+
+  let html = `
+    <div class="form-card">
+      <h2>Profil Author: ${authorName}</h2>
+      <p>Menampilkan semua postingan dan komentar yang diterbitkan.</p>
+      <button onclick="openTab('home'); renderHomeFeed();" style="background:#2563eb;color:white;padding:8px;border:none;border-radius:6px;cursor:pointer;font-weight:600;margin-top:6px;">Kembali ke Home</button>
+    </div>
+  `;
+
+  // Render postingan author
+  if(userPosts.length > 0){
+    html += `<h3>Postingan:</h3>`;
+    userPosts.forEach(p=>{
+      const idx = posts.indexOf(p);
+      html += `
+        <div class="feed-card">
+          <div class="feed-author">${p.author}</div>
+          <div class="feed-title">${p.judul}</div>
+          ${p.ket ? `<div class="feed-desc">${p.ket}</div>` : ""}
+          <button class="open-btn" onclick="scrollToPost(${idx})">Buka Post</button>
+        </div>
+      `;
+    });
+  }
+
+  // Render komentar author
+  if(userComments.length > 0){
+    html += `<h3>Komentar:</h3>`;
+    userComments.forEach(c=>{
+      html += `
+        <div class="comment-card" data-author="${authorName}">
+          <div><strong>Komentar di "${c.postTitle}":</strong></div>
+          <div>${c.text}</div>
+          <button class="open-btn" style="margin-top:6px;" onclick="scrollToAuthorComment(${c.postIndex}, '${authorName}')">Buka Post</button>
+        </div>
+      `;
+    });
+  }
+
+  profilFeed.innerHTML = html;
 }
 
-function scrollToPost(postIndex){
-  openTab('home'); renderHomeFeed();
-  const el=document.getElementById(`post-${postIndex}`);
-  if(el){ el.scrollIntoView({behavior:"smooth", block:"start"}); el.style.boxShadow="0 0 0 3px #2563eb inset"; setTimeout(()=>{el.style.boxShadow="";},2000);}
-}
+// SCROLL KE KOMENTAR AUTHOR
+function scrollToAuthorComment(postIndex, authorName){
+  // langsung buka tab comments
+  openComments(postIndex);
 
+  setTimeout(()=>{
+    const commentsList = document.getElementById('comments-list');
+    if(!commentsList) return;
+
+    // cari komentar author pakai data-author
+    const commentEl = Array.from(commentsList.children)
+      .find(c => c.getAttribute('data-author') === authorName);
+
+    if(commentEl){
+      commentEl.scrollIntoView({behavior:"smooth", block:"center"});
+      commentEl.style.background = "#fef3c7";
+      setTimeout(()=>{ commentEl.style.background = ""; }, 2000);
+    }
+  }, 150);
+}
 // INITIAL
 fetchPosts();
 </script>
