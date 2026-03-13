@@ -33,6 +33,81 @@ button:hover { background:#1e40af; }
 .pagination { text-align:center; margin-top:18px; }
 .page-btn { display:inline-block; padding:6px 12px; margin:3px; background:#e5e7eb; border-radius:6px; cursor:pointer; font-size:14px; }
 .page-btn.active { background:#2563eb; color:white; }
+/* Hover effect feed-card di profil */
+#profil .feed-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  transition: all 0.2s;
+}
+
+/* Komentar author profil lebih menonjol */
+#profil .comment-card {
+  background:#e0f2fe;
+  border-left:4px solid #2563eb;
+  padding:12px;
+  margin-bottom:10px;
+}
+#profil .comment-card button {
+  background:#10b981; color:white;
+}
+/* TAB COMMENTS LAYOUT */
+#comments .form-card {
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+#comments .post-original {
+  background:#fff;
+  border-radius:12px;
+  padding:16px;
+  box-shadow:0 3px 10px rgba(0,0,0,0.08);
+}
+#comments .post-original .feed-title {
+  font-size:18px; font-weight:700; margin-bottom:6px;
+}
+#comments .post-original .feed-author {
+  font-weight:600; color:#2563eb; margin-bottom:6px;
+}
+#comments .post-original a {
+  color:#10b981; text-decoration:underline;
+}
+
+.comment-card {
+  display:flex;
+  gap:10px;
+  background:#f3f4f6;
+  border-radius:8px;
+  padding:10px;
+  align-items:flex-start;
+  box-shadow:0 1px 4px rgba(0,0,0,0.06);
+}
+.comment-card .icon-author {
+  font-size:20px;
+  flex-shrink:0;
+}
+.comment-card .comment-body {
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+.comment-card .comment-author {
+  font-weight:600; color:#2563eb;
+}
+.comment-card .comment-text {
+  font-size:14px; color:#4b5563;
+}
+
+#comments textarea {
+  resize:none;
+  height:60px;
+  border-radius:8px;
+  border:1px solid #d1d5db;
+  padding:8px;
+}
+#comments button {
+  margin-top:6px;
+}
+
 @media (max-width:480px) {
   .tabs { flex-direction:column; }
   .tab-btn { margin:4px 0; }
@@ -329,14 +404,24 @@ function openComments(postIndex){
   const feed = document.getElementById('comment-feed');
   feed.innerHTML = `
     <div class="form-card">
-      <h2>Postingan: ${post.judul}</h2>
-      <div><strong>Author:</strong> ${post.author}</div>
-      ${post.ket ? `<div><strong>Keterangan:</strong> ${post.ket}</div>` : ""}
-      <div><strong>Link Produk:</strong> <a href="${post.link}" target="_blank">${post.link}</a></div>
-      <hr style="margin:10px 0;">
+      <div class="post-original">
+        <div class="feed-author">${post.author}</div>
+        <div class="feed-title">${post.judul}</div>
+        ${post.ket ? `<div class="feed-desc">${post.ket}</div>` : ""}
+        <div><strong>Link Produk:</strong> <a href="${post.link}" target="_blank">${post.link}</a></div>
+      </div>
       <h3>Komentar (${post.comments.length})</h3>
       <div id="comments-list">
-        ${post.comments.map(c=>`<div class="comment-card"><strong>${c.author}:</strong> ${c.text}</div>`).join('')}
+        ${post.comments.map(c=>`
+          <div class="comment-card">
+            <div class="icon-author">👤</div>
+            <div class="comment-body">
+              <div class="comment-author">${c.author}</div>
+              <div class="comment-text">${c.text}</div>
+              <button class="open-btn" style="width:100px;" onclick="scrollToPost(${postIndex})">Lihat Post</button>
+            </div>
+          </div>
+        `).join('')}
       </div>
       <label>Tambah Komentar:</label>
       <textarea id="new-comment" placeholder="Tulis komentar..."></textarea>
