@@ -274,21 +274,46 @@ function renderMyFeed(){
   myFeed.innerHTML = html;
 }
 
-// COMMENTS TAB
+// SCROLL KE POSTINGAN
+function scrollToPost(postIndex){
+  openTab('home');           // Buka tab Home
+  // Tentukan halaman
+  const perPage = 10;        // sama dengan perPage di feed
+  currentPage = Math.floor(postIndex / perPage) + 1;
+  renderHomeFeed();          // render halaman yang benar
+
+  // Tunggu render selesai sebelum scroll
+  setTimeout(()=>{
+    const el = document.getElementById(`post-${postIndex}`);
+    if(el){
+      el.scrollIntoView({behavior:"smooth", block:"start"});
+      // Highlight sementara
+      el.style.boxShadow = "0 0 0 3px #2563eb inset";
+      setTimeout(()=>{ el.style.boxShadow = ""; }, 2000);
+    }
+  }, 100);
+}
+
+// UPDATED openComments
 function openComments(postIndex){
   const post = posts[postIndex];
   openTab('comments');
   const feed = document.getElementById('comment-feed');
   feed.innerHTML = `
     <div class="form-card">
-      <h2>Komentar: ${post.judul}</h2>
+      <h2>Postingan: ${post.judul}</h2>
+      <div><strong>Author:</strong> ${post.author}</div>
+      ${post.ket ? `<div><strong>Keterangan:</strong> ${post.ket}</div>` : ""}
+      <div><strong>Link Produk:</strong> <a href="${post.link}" target="_blank">${post.link}</a></div>
+      <hr style="margin:10px 0;">
+      <h3>Komentar (${post.comments.length})</h3>
       <div id="comments-list">
         ${post.comments.map(c=>`<div class="comment-card"><strong>${c.author}:</strong> ${c.text}</div>`).join('')}
       </div>
       <label>Tambah Komentar:</label>
       <textarea id="new-comment" placeholder="Tulis komentar..."></textarea>
       <button onclick="kirimKomentar(${postIndex})">Kirim</button>
-      <button onclick="openTab('home'); renderHomeFeed();" style="background:#ef4444;margin-top:6px;">Kembali ke Home</button>
+      <button onclick="scrollToPost(${postIndex})" style="background:#ef4444;margin-top:6px;">Kembali</button>
     </div>
   `;
 }
