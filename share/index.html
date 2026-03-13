@@ -251,8 +251,21 @@ function gotoHomePage(p){ currentPage=p; renderHomeFeed(); }
 // RENDER MY FEED
 function renderMyFeed(){
   const myFeed = document.getElementById('my-feed');
-  const myPosts = posts.filter(p=>p.author===username);
-  let html="";
+  const myPosts = posts.filter(p => p.author === username);
+  
+  // Ambil komentar user
+  let myComments = [];
+  posts.forEach((p, idx) => {
+    p.comments.forEach(c => {
+      if(c.author === username){
+        myComments.push({...c, postIndex: idx});
+      }
+    });
+  });
+
+  let html = "";
+
+  // Tampilkan postingan sendiri
   myPosts.forEach(p=>{
     const globalIndex = posts.indexOf(p);
     html+=`
@@ -271,6 +284,21 @@ function renderMyFeed(){
       </div>
     `;
   });
+
+  // Tampilkan komentar user
+  if(myComments.length > 0){
+    html += `<h3>Komentar Saya:</h3>`;
+    myComments.forEach(c=>{
+      html += `
+        <div class="feed-card">
+          <div><strong>Komentar di postingan:</strong> ${c.postTitle}</div>
+          <div class="feed-desc">${c.text}</div>
+          <button class="open-btn" onclick="scrollToPost(${c.postIndex})">Lihat Post Asli</button>
+        </div>
+      `;
+    });
+  }
+
   myFeed.innerHTML = html;
 }
 
