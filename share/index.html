@@ -369,7 +369,7 @@ function renderCommentsRecursive(comments, postIndex, level = 0){
 
           <div class="comment-body">
             
-            <div class="comment-author">${c.author}</div>
+            <div class="comment-author">${renderAuthorLink(c.author)}</div>
 
             <div class="comment-text">
               ${c.text}
@@ -399,6 +399,9 @@ function renderCommentsRecursive(comments, postIndex, level = 0){
 
   return html;
 }
+function renderAuthorLink(authorName){
+  return `<span class="feed-author" style="cursor:pointer;" onclick="showAuthorProfile('${authorName}')">${authorName}</span>`;
+}
 
 // RENDER HOME FEED
 function renderHomeFeed(){
@@ -406,11 +409,12 @@ function renderHomeFeed(){
   const start = (currentPage-1)*perPage;
   const sliceData = posts.slice(start,start+perPage);
   let html = "";
+
   sliceData.forEach((p, idx)=>{
     const globalIndex = posts.indexOf(p);
     html += `
       <div class="feed-card" id="post-${globalIndex}">
-        <div class="feed-author" onclick="showAuthorProfile('${p.author}')">${p.author}</div>
+        <div>${renderAuthorLink(p.author)}</div>
         <div class="feed-title">${p.judul}</div>
         ${p.ket ? `<div class="feed-desc">${p.ket}</div>` : ""}
         <div style="display:flex; gap:4%;">
@@ -422,6 +426,7 @@ function renderHomeFeed(){
       </div>
     `;
   });
+
   feedContainer.innerHTML = html;
 
   // pagination
@@ -435,6 +440,7 @@ function renderHomeFeed(){
     paginationEl.innerHTML=htmlPage;
   } else paginationEl.innerHTML="";
 }
+
 function gotoHomePage(p){ currentPage=p; renderHomeFeed(); }
 
 // RENDER MY FEED
@@ -447,7 +453,7 @@ function renderMyFeed(){
   posts.forEach((p, idx) => {
     p.comments.forEach(c => {
       if(c.author === username){
-        myComments.push({...c, postIndex: idx});
+        myComments.push({...c, postTitle: p.judul, postIndex: posts.indexOf(p)});
       }
     });
   });
@@ -459,7 +465,7 @@ function renderMyFeed(){
     const globalIndex = posts.indexOf(p);
     html+=`
       <div class="feed-card" id="post-${globalIndex}">
-        <div class="feed-author">${p.author}</div>
+        <div>${renderAuthorLink(p.author)}</div>
         <div class="feed-title">${p.judul}</div>
         ${p.ket? `<div class="feed-desc">${p.ket}</div>` : ""}
         <div style="display:flex; gap:4%;">
@@ -478,13 +484,13 @@ function renderMyFeed(){
   if(myComments.length > 0){
     html += `<h3>Komentar Saya:</h3>`;
     myComments.forEach(c=>{
-  html += `
-    <div class="feed-card">
-      <div class="feed-desc"><strong>Komentar di:</strong> ${c.postTitle}</div>
-      ${renderCommentsRecursive([c], c.postIndex)}
-    </div>
-  `;
-});
+      html += `
+        <div class="feed-card">
+          <div class="feed-desc"><strong>Komentar di:</strong> ${c.postTitle}</div>
+          ${renderCommentsRecursive([c], c.postIndex)}
+        </div>
+      `;
+    });
   }
 
   myFeed.innerHTML = html;
