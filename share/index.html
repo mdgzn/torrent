@@ -445,6 +445,7 @@ function renderHomeFeed(){
 
   sliceData.forEach((p, idx)=>{
     const globalIndex = posts.indexOf(p);
+    const totalComments = countAllComments(p.comments); // hitung semua komentar bersarang
     html += `
       <div class="feed-card" id="post-${globalIndex}">
         <div>${renderAuthorLink(p.author)} • <span class="feed-time">${formatWIB(p.createdAt)}</span></div>
@@ -452,7 +453,7 @@ function renderHomeFeed(){
         ${p.ket ? `<div class="feed-desc">${p.ket}</div>` : ""}
         <div style="display:flex; gap:4%;">
           <button class="comment-btn" style="flex:1;" onclick="openComments(${globalIndex})">
-            Komentar (${p.comments.length})
+            Komentar (${totalComments})
           </button>
           <button class="open-btn" style="flex:1;" onclick="window.open('${p.link}','_blank')">Buka Link</button>
         </div>
@@ -496,6 +497,7 @@ function renderMyFeed(){
   // Tampilkan postingan sendiri
   myPosts.forEach(p=>{
     const globalIndex = posts.indexOf(p);
+    const totalComments = countAllComments(p.comments); // gunakan countAllComments
     html+=`
       <div class="feed-card" id="post-${globalIndex}">
         <div>${renderAuthorLink(p.author)} • <span class="feed-time">${formatWIB(p.createdAt)}</span></div>
@@ -503,7 +505,7 @@ function renderMyFeed(){
         ${p.ket? `<div class="feed-desc">${p.ket}</div>` : ""}
         <div style="display:flex; gap:4%;">
           <button class="comment-btn" style="flex:1;" onclick="openComments(${globalIndex})">
-            Komentar (${p.comments.length})
+            Komentar (${totalComments})
           </button>
           <button class="open-btn" style="flex:1;" onclick="window.open('${p.link}','_blank')">Buka Link</button>
         </div>
@@ -528,6 +530,7 @@ function renderMyFeed(){
 
   myFeed.innerHTML = html;
 }
+
 // SCROLL KE POSTINGAN
 function scrollToPost(postIndex){
   openTab('home');           // Buka tab Home
@@ -660,11 +663,13 @@ function showAuthorProfile(authorName){
     html += `<h3>Postingan:</h3>`;
     userPosts.forEach(p=>{
       const idx = posts.indexOf(p);
+      const totalComments = countAllComments(p.comments); // hitung semua komentar bersarang
       html += `
         <div class="feed-card">
           <div class="feed-author">${p.author}</div>
           <div class="feed-title">${p.judul}</div>
           ${p.ket ? `<div class="feed-desc">${p.ket}</div>` : ""}
+          <button class="comment-btn" onclick="openComments(${idx})">Komentar (${totalComments})</button>
           <button class="open-btn" onclick="scrollToPost(${idx})">Buka Post</button>
         </div>
       `;
@@ -675,13 +680,13 @@ function showAuthorProfile(authorName){
   if(userComments.length > 0){
     html += `<h3>Komentar:</h3>`;
     userComments.forEach(c=>{
-  html += `
-    <div class="feed-card">
-      <div class="feed-desc"><strong>Komentar di:</strong> ${c.postTitle}</div>
-      ${renderCommentsRecursive([c], c.postIndex)}
-    </div>
-  `;
-});
+      html += `
+        <div class="feed-card">
+          <div class="feed-desc"><strong>Komentar di:</strong> ${c.postTitle}</div>
+          ${renderCommentsRecursive([c], c.postIndex)}
+        </div>
+      `;
+    });
   }
 
   profilFeed.innerHTML = html;
@@ -706,6 +711,17 @@ function scrollToAuthorComment(postIndex, authorName){
       setTimeout(()=>{ commentEl.style.background = ""; }, 2000);
     }
   }, 150);
+}
+
+function countAllComments(comments){
+  let count = 0;
+  comments.forEach(c=>{
+    count += 1; // hitung komentar ini
+    if(c.replies && c.replies.length > 0){
+      count += countAllComments(c.replies); // hitung semua reply
+    }
+  });
+  return count;
 }
 
 function formatWIB(dateStr){
