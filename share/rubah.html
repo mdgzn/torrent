@@ -3,47 +3,87 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ganti Username Local</title>
+<title>All Posts & Comments - Admin Mode</title>
 <style>
-body { font-family: system-ui; padding:20px; background:#f2f4f8; }
-.container { max-width:400px; margin:auto; background:#fff; padding:20px; border-radius:12px; box-shadow:0 3px 10px rgba(0,0,0,0.1);}
-input { width:100%; padding:10px; margin-top:8px; border-radius:8px; border:1px solid #d1d5db; box-sizing:border-box; }
-button { margin-top:10px; width:100%; padding:10px; border:none; border-radius:8px; font-weight:600; cursor:pointer; background:#2563eb; color:white; }
-button:hover { background:#1e40af; }
+body { font-family: system-ui; background:#f2f4f8; margin:0; padding:12px; }
+.container { max-width:700px; margin:auto; }
+h1 { text-align:center; color:#1f2937; margin-bottom:12px; }
+
+.feed-card { background:#fff; border-radius:12px; padding:16px; margin-bottom:12px; box-shadow:0 3px 10px rgba(0,0,0,0.08); }
+.feed-title { font-weight:700; font-size:16px; color:#111827; margin-bottom:6px; }
+.feed-author { font-weight:600; color:#2563eb; margin-bottom:6px; cursor:pointer; }
+.feed-desc { font-size:14px; color:#4b5563; margin-bottom:8px; }
+.feed-link { color:#10b981; text-decoration:underline; margin-bottom:8px; display:inline-block; }
+
+.comment-toggle { background:#2563eb; color:white; border:none; border-radius:8px; padding:8px 12px; cursor:pointer; font-weight:600; margin-bottom:8px; }
+.comment-toggle:hover { background:#1e40af; }
+
+.comment-section { display:none; margin-top:8px; }
+.comment-card { background:#f9fafb; border-radius:10px; padding:10px; margin-bottom:6px; border:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:center;}
+.comment-author { font-weight:600; font-size:14px; color:#1f2937; }
+.comment-text { font-size:14px; color:#374151; margin-top:2px; line-height:1.4; flex:1; }
+
+.btn-json { background:#10b981; color:white; border:none; border-radius:8px; padding:10px 14px; font-weight:600; cursor:pointer; margin-bottom:12px; }
+.btn-json:hover { background:#059669; }
+
+.delete-btn { background:#ef4444; color:white; border:none; border-radius:6px; padding:6px 10px; cursor:pointer; font-weight:600; margin-left:6px;}
+.delete-btn:hover { background:#b91c1c; }
+
+#username-section { background:#fff; border-radius:12px; padding:12px; margin-bottom:12px; box-shadow:0 3px 10px rgba(0,0,0,0.08);}
+#username-section input { width:100%; padding:10px; border-radius:8px; border:1px solid #d1d5db; margin-top:6px; box-sizing:border-box;}
+#username-section button { margin-top:6px; width:100%; padding:10px; border:none; border-radius:8px; font-weight:600; cursor:pointer; background:#2563eb; color:white;}
+#username-section button:hover { background:#1e40af; }
 #notif { margin-top:10px; padding:10px; border-radius:8px; font-weight:600; display:none; color:white;}
+
+@media (max-width:480px){
+  .feed-card { padding:12px; }
+  .comment-toggle, .btn-json { width:100%; margin-bottom:6px; }
+  .comment-card { flex-direction:column; align-items:flex-start; }
+  .delete-btn { margin-left:0; margin-top:6px; }
+}
 </style>
 </head>
 <body>
 <div class="container">
-  <h2>Ganti Username Local</h2>
+<h1>Semua Postingan & Komentar - Admin Mode</h1>
+
+<!-- Ganti Username -->
+<div id="username-section">
   <p>Username saat ini: <span id="current-username"></span></p>
-  <label>Masukkan username baru:</label>
-  <input type="text" id="new-username" placeholder="Misal: RikoPratama8581">
+  <input type="text" id="new-username" placeholder="Masukkan username baru">
   <button onclick="gantiUsername()">Simpan Username</button>
   <button onclick="resetUsername()" style="background:#ef4444;margin-top:6px;">Reset ke Default</button>
   <div id="notif"></div>
 </div>
 
+<!-- Tombol JSON -->
+<button class="btn-json" onclick="showJSON()">Ambil Data (JSON)</button>
+<div id="all-posts"></div>
+</div>
+
 <script>
+const GAS_URL = "https://script.google.com/macros/s/AKfycbwzsIy_r8hsXjIH7nt2VgxETeM86kipahJCMPMLLAzgenyjWc-SrkxTRwI-uym1-Qws/exec";
+let posts = [];
+let username = localStorage.getItem("visitorUsername") || "admin123"; // default admin
+const admins = ["admin123"]; // bisa ditambah admin lain
+
+// --- USERNAME ---
 function tampilUsername(){
-  let uname = localStorage.getItem("visitorUsername");
-  if(!uname){
-    uname = "DefaultUser123";
-    localStorage.setItem("visitorUsername", uname);
-  }
-  document.getElementById("current-username").innerText = uname;
+  document.getElementById("current-username").innerText = username;
 }
 
 function gantiUsername(){
   const input = document.getElementById("new-username").value.trim();
   if(!input){ showNotif("Username tidak boleh kosong","#ef4444"); return; }
-  localStorage.setItem("visitorUsername", input);
+  username = input;
+  localStorage.setItem("visitorUsername", username);
   tampilUsername();
   showNotif("Username berhasil diubah!","#10b981");
 }
 
 function resetUsername(){
-  localStorage.removeItem("visitorUsername");
+  username = "admin123";
+  localStorage.setItem("visitorUsername", username);
   tampilUsername();
   showNotif("Username di-reset ke default","#f59e0b");
 }
@@ -56,8 +96,110 @@ function showNotif(text,color){
   setTimeout(()=>{ n.style.display="none"; },2500);
 }
 
-// initial
+// --- FETCH DATA ---
+async function fetchPosts(){
+  try{
+    const resp = await fetch(GAS_URL, {method:"POST", body: JSON.stringify({read:true})});
+    const data = await resp.json();
+    posts = data || [];
+    posts.forEach(p=>{ if(!p.comments)p.comments=[]; });
+    renderPosts();
+  } catch(err){ console.error(err); alert("Gagal ambil data dari server"); }
+}
+
+// --- RENDER KOMENTAR RECURSIVE ---
+function renderCommentsRecursive(comments, postIndex, level=0){
+  let html = "";
+  comments.forEach((c, ci)=>{
+    html += `<div class="comment-card" style="margin-left:${level*16}px">
+      <div class="comment-text"><strong>${c.author}:</strong> ${c.text}</div>
+      ${admins.includes(username)?`<button class="delete-btn" onclick="hapusKomentar(${postIndex},${ci})">Hapus</button>`:""}
+      ${c.replies && c.replies.length>0 ? renderCommentsRecursive(c.replies, postIndex, level+1) : ""}
+    </div>`;
+  });
+  return html;
+}
+
+// --- RENDER POSTINGAN ---
+function renderPosts(){
+  const container = document.getElementById("all-posts");
+  let html = "";
+  posts.forEach((p, idx)=>{
+    html += `<div class="feed-card" id="post-${idx}">
+      <div class="feed-author">${p.author}</div>
+      <div class="feed-title">${p.judul}</div>
+      ${p.ket ? `<div class="feed-desc">${p.ket}</div>` : ""}
+      <a href="${p.link}" target="_blank" class="feed-link">Buka Link</a>
+      ${admins.includes(username)?`<button class="delete-btn" onclick="hapusPost(${idx})">Hapus Post</button>`:""}
+      ${p.comments.length>0 ? `<button class="comment-toggle" onclick="toggleComments(${idx})">Lihat Komentar (${p.comments.length})</button>`:""}
+      <div class="comment-section" id="comments-${idx}">
+        ${renderCommentsRecursive(p.comments, idx)}
+      </div>
+    </div>`;
+  });
+  container.innerHTML = html;
+}
+
+// --- TOGGLE KOMENTAR ---
+function toggleComments(idx){
+  const el = document.getElementById(`comments-${idx}`);
+  if(el) el.style.display = el.style.display==="none"?"block":"none";
+}
+
+// --- HAPUS POST ---
+async function hapusPost(postIndex){
+  if(confirm("Apakah yakin ingin menghapus postingan ini?")){
+    try{
+      const resp = await fetch(GAS_URL,{method:"POST", body:JSON.stringify({deleteIndex:postIndex})});
+      const res = await resp.json();
+      if(res.status==="ok") fetchPosts();
+      else alert(res.message);
+    } catch(err){ console.error(err); alert("Gagal menghapus postingan."); }
+  }
+}
+
+// --- HAPUS KOMENTAR ---
+async function hapusKomentar(postIndex, commentIndex){
+  if(confirm("Hapus komentar ini?")){
+    posts[postIndex].comments.splice(commentIndex,1);
+    try{
+      const resp=await fetch(GAS_URL,{method:"POST", body:JSON.stringify({editIndex:postIndex, comments:posts[postIndex].comments})});
+      const res=await resp.json();
+      if(res.status==="ok") fetchPosts();
+      else alert(res.message);
+    } catch(err){ console.error(err); alert("Gagal menghapus komentar."); }
+  }
+}
+
+// --- AMBIL DATA JSON ---
+function showJSON(){
+  const jsonData = JSON.stringify(posts,null,2);
+  const existing = document.getElementById("json-fullscreen");
+  if(existing) existing.remove();
+
+  const container = document.createElement("div");
+  container.id="json-fullscreen";
+  container.style.cssText="position:fixed;top:0;left:0;width:100%;height:100%;background:#f3f4f6;z-index:9999;display:flex;flex-direction:column;";
+
+  const closeBtn = document.createElement("button");
+  closeBtn.innerText="Tutup";
+  closeBtn.style.cssText="background:#ef4444;color:white;border:none;padding:10px;font-weight:600;cursor:pointer;border-radius:6px;margin:10px;";
+  closeBtn.onclick=()=>container.remove();
+
+  const ta = document.createElement("textarea");
+  ta.value=jsonData;
+  ta.style.cssText="flex:1;margin:10px;width:calc(100% - 20px);border:1px solid #d1d5db;border-radius:8px;padding:12px;font-family:monospace;font-size:13px;color:#111827;resize:none;";
+  container.appendChild(closeBtn);
+  container.appendChild(ta);
+  document.body.appendChild(container);
+
+  ta.select();
+  ta.setSelectionRange(0, ta.value.length);
+}
+
+// --- INITIAL ---
 tampilUsername();
+fetchPosts();
 </script>
 </body>
 </html>
