@@ -123,6 +123,19 @@ border-left:2px solid #e5e7eb;
 margin-left:20px;padding-left:12px
 }
 
+.comment-time{
+  font-size:11px;
+  color:#9ca3af;
+  margin-left:4px;
+}
+
+/* Waktu posting & komentar kecil & netral */
+.feed-time, .comment-time {
+  font-size:12px;
+  color:#6b7280; /* abu gelap netral */
+  margin-left:6px;
+}
+
 /* =========================
    RESPONSIVE
 ========================= */
@@ -164,10 +177,7 @@ width:32px;height:32px;font-size:13px
 <p>
   🌟 Selamat datang di platform <strong>share link super praktis & gratis</strong>!  
   Di sini, Anda bisa membagikan link produk affiliate, video YouTube, TikTok, Shopee, dan konten favorit lainnya dengan mudah.  
-  Buat postingan menarik dalam hitungan detik, simpan di web ini, dan bagikan ke teman, keluarga, atau media sosial Anda tanpa batas.  
-  Semua postingan tersimpan aman di server kami, responsif di HP maupun desktop, dan siap membantu Anda menjangkau lebih banyak audiens.  
-  💡 Temukan ide, lihat tren terbaru, dan tingkatkan visibilitas konten Anda dengan cara yang menyenangkan dan efisien.  
-  Semua gratis, mudah, dan cepat — sempurna untuk siapa saja yang ingin berbagi informasi dengan cepat! 🚀
+  
 </p>
   </div>
   <div id="home-feed"></div>
@@ -275,7 +285,16 @@ async function tambahPost(){
   const ket = document.getElementById("ket").value.trim();
   const link = document.getElementById("link").value.trim();
   if(!judul||!link){ showNotif("Judul dan link wajib diisi","#ef4444"); return; }
-  const entry = {judul, ket, link, author: username, comments: []};
+
+  const entry = {
+    judul,
+    ket,
+    link,
+    author: username,
+    comments: [],
+    createdAt: new Date().toISOString() // simpan waktu UTC
+  };
+
   try{
     const resp = await fetch(GAS_URL, {method:"POST", body:JSON.stringify(entry)});
     const res = await resp.json();
@@ -314,19 +333,18 @@ async function kirimKomentar(postIndex, parentId = null){
 
   const post = posts[postIndex];
 
-  // Buat objek komentar baru
   const newComment = {
-    id: commentIdCounter++, // id unik
+    id: commentIdCounter++,
     author: username,
     text: txt,
+    createdAt: new Date().toISOString(), // waktu komentar
     replies: []
   };
 
-  // Jika parentId null, berarti komentar langsung ke post
   if(parentId === null){
     post.comments.push(newComment);
   } else {
-    // Cari komentar parent secara recursive
+
     function addReply(comments){
       for(let c of comments){
         if(c.id === parentId){
@@ -339,19 +357,28 @@ async function kirimKomentar(postIndex, parentId = null){
       }
       return false;
     }
+
     addReply(post.comments);
   }
 
   try{
-    // Simpan ke GAS
-    const resp = await fetch(GAS_URL, {method:"POST", body:JSON.stringify({editIndex: postIndex, comments: post.comments})});
+    const resp = await fetch(GAS_URL, {
+      method:"POST",
+      body:JSON.stringify({editIndex: postIndex, comments: post.comments})
+    });
+
     const res = await resp.json();
+
     if(res.status==="ok"){
-      document.getElementById('new-comment').value = "";
-      openComments(postIndex); // refresh tab komentar
-      fetchPosts(); // refresh feed dan profil
+      document.getElementById('new-comment').value="";
+      openComments(postIndex);
+      fetchPosts();
     } else alert(res.message);
-  } catch(err){ console.error(err); alert("Gagal menyimpan komentar."); }
+
+  } catch(err){
+    console.error(err);
+    alert("Gagal menyimpan komentar.");
+  }
 }
 
 function renderCommentsRecursive(comments, postIndex, level = 0){
@@ -369,7 +396,12 @@ function renderCommentsRecursive(comments, postIndex, level = 0){
 
           <div class="comment-body">
             
-            <div class="comment-author">${renderAuthorLink(c.author)}</div>
+            <div class="comment-author">
+              ${renderAuthorLink(c.author)}
+              <span class="comment-time">
+                • ${formatWIB(c.createdAt || new Date().toISOString())}
+              </span>
+            </div>
 
             <div class="comment-text">
               ${c.text}
@@ -399,6 +431,7 @@ function renderCommentsRecursive(comments, postIndex, level = 0){
 
   return html;
 }
+
 function renderAuthorLink(authorName){
   return `<span class="feed-author" style="cursor:pointer;" onclick="showAuthorProfile('${authorName}')">${authorName}</span>`;
 }
@@ -414,7 +447,7 @@ function renderHomeFeed(){
     const globalIndex = posts.indexOf(p);
     html += `
       <div class="feed-card" id="post-${globalIndex}">
-        <div>${renderAuthorLink(p.author)}</div>
+        <div>${renderAuthorLink(p.author)} • <span class="feed-time">${formatWIB(p.createdAt)}</span></div>
         <div class="feed-title">${p.judul}</div>
         ${p.ket ? `<div class="feed-desc">${p.ket}</div>` : ""}
         <div style="display:flex; gap:4%;">
@@ -465,7 +498,7 @@ function renderMyFeed(){
     const globalIndex = posts.indexOf(p);
     html+=`
       <div class="feed-card" id="post-${globalIndex}">
-        <div>${renderAuthorLink(p.author)}</div>
+        <div>${renderAuthorLink(p.author)} • <span class="feed-time">${formatWIB(p.createdAt)}</span></div>
         <div class="feed-title">${p.judul}</div>
         ${p.ket? `<div class="feed-desc">${p.ket}</div>` : ""}
         <div style="display:flex; gap:4%;">
@@ -495,7 +528,6 @@ function renderMyFeed(){
 
   myFeed.innerHTML = html;
 }
-
 // SCROLL KE POSTINGAN
 function scrollToPost(postIndex){
   openTab('home');           // Buka tab Home
@@ -532,7 +564,7 @@ function openComments(postIndex){
   feed.innerHTML = `
     <div class="form-card">
       <div class="post-original">
-        <div class="feed-author">${post.author}</div>
+        <div>${renderAuthorLink(post.author)} • <span class="feed-time">${formatWIB(post.createdAt)}</span></div>
         <div class="feed-title">${post.judul}</div>
         ${post.ket ? `<div class="feed-desc">${post.ket}</div>` : ""}
         <div><strong>Link Produk:</strong> <a href="${post.link}" target="_blank">${post.link}</a></div>
@@ -675,6 +707,24 @@ function scrollToAuthorComment(postIndex, authorName){
     }
   }, 150);
 }
+
+function formatWIB(dateStr){
+  const date = new Date(dateStr);
+  // WIB = UTC+7
+  const wibDate = new Date(date.getTime() + 7*60*60*1000);
+
+  const day = String(wibDate.getDate()).padStart(2,'0');
+  const monthNames = ["Januari","Februari","Maret","April","Mei","Juni",
+                      "Juli","Agustus","September","Oktober","November","Desember"];
+  const month = monthNames[wibDate.getMonth()];
+  const year = wibDate.getFullYear();
+
+  const hours = String(wibDate.getHours()).padStart(2,'0');
+  const minutes = String(wibDate.getMinutes()).padStart(2,'0');
+
+  return `${day}-${String(wibDate.getMonth()+1).padStart(2,'0')}-${year} ${hours}:${minutes}`;
+}
+
 // INITIAL
 fetchPosts();
 </script>
